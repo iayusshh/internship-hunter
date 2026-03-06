@@ -78,6 +78,34 @@ PAID_BLOCKLIST = [
     "0 per month",
 ]
 
+INTERNSHIP_HINT_KEYWORDS = [
+    "intern",
+    "internship",
+    "trainee",
+    "apprentice",
+    "graduate program",
+]
+
+DUBIOUS_TITLE_KEYWORDS = [
+    "training",
+    "course",
+    "bootcamp",
+    "mentor",
+    "instructor",
+    "coach",
+    "referral",
+    "commission",
+]
+
+DUBIOUS_COMPANY_KEYWORDS = [
+    "staffing",
+    "recruit",
+    "consultancy",
+    "outsourcing",
+    "talent",
+    "hr services",
+]
+
 
 def _normalize(text: str) -> str:
     text = (text or "").lower().strip()
@@ -94,6 +122,42 @@ def is_tech_role(title: str) -> bool:
     if any(word in role for word in SENIORITY_EXCLUDE_KEYWORDS):
         return False
     return any(word in role for word in TECH_INCLUDE_KEYWORDS)
+
+
+def _is_internship_like(job: dict) -> bool:
+    title = _normalize(str(job.get("title", "")))
+    url = _normalize(str(job.get("url", "")))
+    text = f"{title} {url}"
+    return any(token in text for token in INTERNSHIP_HINT_KEYWORDS)
+
+
+def _looks_dubious(job: dict) -> bool:
+    title = _normalize(str(job.get("title", "")))
+    company = _normalize(str(job.get("company", "")))
+    if any(token in title for token in DUBIOUS_TITLE_KEYWORDS):
+        return True
+    if any(token in company for token in DUBIOUS_COMPANY_KEYWORDS):
+        return True
+    return False
+
+
+def quality_score(job: dict) -> int:
+    title = _normalize(str(job.get("title", "")))
+    location = _normalize(str(job.get("location", "")))
+    stipend = _normalize(str(job.get("stipend", "")))
+
+    score = 0
+    if _is_internship_like(job):
+        score += 4
+    if any(token in title for token in ["software engineer", "sde", "developer", "devops", "machine learning", "ai", "data engineer"]):
+        score += 3
+    if any(token in location for token in ["remote", "hybrid", "india", "united states", "europe"]):
+        score += 1
+    if stipend:
+        score += 1
+    if _looks_dubious(job):
+        score -= 5
+    return score
 
 
 def _extract_amounts(stipend_text: str) -> list[int]:
@@ -136,6 +200,7 @@ def _is_paid_text(stipend_text: str) -> bool:
 def is_paid_internship(job: dict) -> bool:
     strict_paid_only = os.environ.get("STRICT_PAID_ONLY", "true").lower() == "true"
     min_stipend_inr = int(os.environ.get("MIN_STIPEND_INR", "5000"))
+    source = str(job.get("source", "")).strip().lower()
 
     stipend = str(job.get("stipend", "")).strip()
     if stipend:
@@ -147,17 +212,37 @@ def is_paid_internship(job: dict) -> bool:
     if isinstance(paid_flag, bool):
         return paid_flag
 
+    # LinkedIn listings usually do not expose stipend in search results.
+    # Keep them when strict mode is on, and let title relevance filters do the cleanup.
+    if source == "linkedin":
+        return True
+
     # If strict mode is enabled, unknown stipend is dropped.
     return not strict_paid_only
 
 
 def filter_relevant_jobs(jobs: list[dict]) -> list[dict]:
+    linkedin_min_quality = int(os.environ.get("LINKEDIN_MIN_QUALITY", "6"))
+    require_linkedin_intern = os.environ.get("LINKEDIN_REQUIRE_INTERNSHIP_HINT", "true").lower() == "true"
+
     filtered = []
     for job in jobs:
+        source = str(job.get("source", "")).strip().lower()
         title = str(job.get("title", ""))
+
         if not is_tech_role(title):
             continue
+        if _looks_dubious(job):
+            continue
+
+        if source == "linkedin" and require_linkedin_intern and not _is_internship_like(job):
+            continue
+
         if not is_paid_internship(job):
             continue
+
+        if source == "linkedin" and quality_score(job) < linkedin_min_quality:
+            continue
+
         filtered.append(job)
     return filtered

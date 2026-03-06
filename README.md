@@ -122,6 +122,9 @@ export STRICT_PAID_ONLY="true"
 export MIN_STIPEND_INR="5000"
 export SOURCE_CAP_INTERNSHALA="5"
 export SOURCE_CAP_UNSTOP="5"
+export SOURCE_CAP_LINKEDIN="40"
+export LINKEDIN_MAX_PAGES="1"
+export LINKEDIN_MIN_QUALITY="6"
 
 python main.py
 ```
@@ -129,6 +132,9 @@ python main.py
 `STRICT_PAID_ONLY=true` drops listings without clear stipend data.
 `MIN_STIPEND_INR=5000` removes very low-paying internships (for INR listings).
 `SOURCE_CAP_INTERNSHALA=5` and `SOURCE_CAP_UNSTOP=5` keep non-LinkedIn noise low.
+`SOURCE_CAP_LINKEDIN=40` limits delivery to top-ranked LinkedIn matches.
+`LINKEDIN_MAX_PAGES=1` keeps scrape breadth focused.
+`LINKEDIN_MIN_QUALITY=6` keeps only stronger LinkedIn matches.
 
 ---
 

@@ -13,7 +13,7 @@ from scrapers.linkedin_scraper import scrape_linkedin
 from scrapers.internshala_scraper import scrape_internshala
 from scrapers.unstop_scraper import scrape_unstop
 from deduplicator import filter_new_jobs
-from job_filters import filter_relevant_jobs
+from job_filters import filter_relevant_jobs, quality_score
 from notifier import send_email, send_telegram
 
 logging.basicConfig(
@@ -25,6 +25,7 @@ logger = logging.getLogger("main")
 
 SOURCE_CAP_INTERNSHALA = int(os.environ.get("SOURCE_CAP_INTERNSHALA", "5"))
 SOURCE_CAP_UNSTOP = int(os.environ.get("SOURCE_CAP_UNSTOP", "5"))
+SOURCE_CAP_LINKEDIN = int(os.environ.get("SOURCE_CAP_LINKEDIN", "40"))
 
 
 def _prioritize_sources(jobs: list[dict]) -> list[dict]:
@@ -33,12 +34,22 @@ def _prioritize_sources(jobs: list[dict]) -> list[dict]:
     unstop = [j for j in jobs if j.get("source") == "Unstop"]
     other = [j for j in jobs if j.get("source") not in {"LinkedIn", "Internshala", "Unstop"}]
 
+    linkedin = sorted(linkedin, key=quality_score, reverse=True)
+
     selected = []
-    selected.extend(linkedin)  # Keep all good LinkedIn roles.
+    selected.extend(linkedin[:SOURCE_CAP_LINKEDIN])
     selected.extend(internshala[:SOURCE_CAP_INTERNSHALA])
     selected.extend(unstop[:SOURCE_CAP_UNSTOP])
     selected.extend(other)
     return selected
+
+
+def _source_counts(jobs: list[dict]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for job in jobs:
+        src = str(job.get("source", "Other"))
+        counts[src] = counts.get(src, 0) + 1
+    return counts
 
 
 def main():
@@ -76,19 +87,23 @@ def main():
         logger.error(f"  Unstop scraper failed: {e}")
 
     logger.info(f"Total raw results: {len(all_jobs)}")
+    logger.info(f"Raw by source: {_source_counts(all_jobs)}")
 
     # Keep only paid, tech-focused internships (dev/devops/AI-ML/SE/SDE/SOE).
     relevant_jobs = filter_relevant_jobs(all_jobs)
     logger.info(f"Relevant jobs after role+paid filters: {len(relevant_jobs)}")
+    logger.info(f"Relevant by source: {_source_counts(relevant_jobs)}")
 
     # ── Deduplication ─────────────────────────
     new_jobs = filter_new_jobs(relevant_jobs)
     logger.info(f"New (unseen) jobs after deduplication: {len(new_jobs)}")
+    logger.info(f"New by source: {_source_counts(new_jobs)}")
 
     selected_jobs = _prioritize_sources(new_jobs)
     logger.info(
-        "Selected jobs for delivery: %s (LinkedIn prioritized, Internshala<=%s, Unstop<=%s)",
+        "Selected jobs for delivery: %s (LinkedIn<=%s prioritized, Internshala<=%s, Unstop<=%s)",
         len(selected_jobs),
+        SOURCE_CAP_LINKEDIN,
         SOURCE_CAP_INTERNSHALA,
         SOURCE_CAP_UNSTOP,
     )

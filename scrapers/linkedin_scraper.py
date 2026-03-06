@@ -1,140 +1,124 @@
-import os
 import logging
-from linkedin_jobs_scraper import LinkedinScraper
-from linkedin_jobs_scraper.events import Events, EventData, EventMetrics
-from linkedin_jobs_scraper.query import Query, QueryOptions, QueryFilters
-from linkedin_jobs_scraper.filters import (
-    RelevanceFilters,
-    TimeFilters,
-    TypeFilters,
-    ExperienceLevelFilters,
-    OnSiteOrRemoteFilters,
-)
+import os
+import time
+from urllib.parse import urlencode
+
+import requests
+from bs4 import BeautifulSoup
 
 logger = logging.getLogger(__name__)
 
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept-Language": "en-US,en;q=0.9",
+}
+
 KEYWORDS = [
     "software engineer intern",
-    "full stack intern",
-    "developer intern",
-    "frontend intern",
-    "backend intern",
-    "AI intern",
-    "ML intern",
-    "fresher developer",
-]
-
-FALLBACK_KEYWORDS = [
-    "software engineer internship",
+    "software developer intern",
     "sde intern",
-    "backend developer intern",
-    "frontend developer intern",
     "full stack developer intern",
+    "frontend developer intern",
+    "backend developer intern",
     "devops intern",
     "machine learning intern",
     "ai engineer intern",
+    "data engineer intern",
 ]
 
-LOCATIONS = ["India", "Worldwide"]
+LOCATIONS = ["India", "Remote", "United States"]
+MAX_PAGES_PER_QUERY = int(os.environ.get("LINKEDIN_MAX_PAGES", "1"))
+RESULTS_PER_PAGE = 25
 
 
-def _build_queries(keywords: list[str], strict: bool) -> list[Query]:
-    queries = []
-    for keyword in keywords:
-        for location in LOCATIONS:
-            filters = QueryFilters(
-                relevance=RelevanceFilters.RECENT,
-                time=TimeFilters.WEEK if strict else TimeFilters.MONTH,
-                on_site_or_remote=[
-                    OnSiteOrRemoteFilters.ON_SITE,
-                    OnSiteOrRemoteFilters.REMOTE,
-                    OnSiteOrRemoteFilters.HYBRID,
-                ],
-            )
+def _build_guest_url(keyword: str, location: str, start: int) -> str:
+    params = {
+        "keywords": keyword,
+        "location": location,
+        "start": start,
+        "f_TPR": "r604800",  # last 7 days
+        "f_E": "1,2",  # internship/entry level-ish
+    }
+    return f"https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?{urlencode(params)}"
 
-            if strict:
-                filters.type = [TypeFilters.INTERNSHIP]
-                filters.experience = [
-                    ExperienceLevelFilters.INTERNSHIP,
-                    ExperienceLevelFilters.ENTRY_LEVEL,
-                ]
 
-            queries.append(
-                Query(
-                    query=keyword,
-                    options=QueryOptions(
-                        locations=[location],
-                        apply_link=False,
-                        skip_promoted_jobs=True,
-                        limit=12 if strict else 16,
-                        filters=filters,
-                    ),
-                )
-            )
-    return queries
+def _parse_cards(html: str) -> list[dict]:
+    soup = BeautifulSoup(html, "lxml")
+    cards = soup.select("li")
+
+    jobs = []
+    for card in cards:
+        link_el = card.select_one("a.base-card__full-link, a.base-card-link") or card.select_one("a[href]")
+        title_el = card.select_one("h3.base-search-card__title") or card.select_one("h3")
+        company_el = card.select_one("h4.base-search-card__subtitle") or card.select_one("h4")
+        location_el = card.select_one("span.job-search-card__location") or card.select_one(".job-search-card__location")
+        date_el = card.select_one("time")
+
+        url = (link_el.get("href") or "").strip() if link_el else ""
+        if not url:
+            continue
+
+        jobs.append(
+            {
+                "title": title_el.get_text(" ", strip=True) if title_el else "N/A",
+                "company": company_el.get_text(" ", strip=True) if company_el else "N/A",
+                "location": location_el.get_text(" ", strip=True) if location_el else "N/A",
+                "url": url,
+                "source": "LinkedIn",
+                "date_posted": date_el.get("datetime", "Recent") if date_el else "Recent",
+            }
+        )
+
+    return jobs
 
 
 def scrape_linkedin() -> list[dict]:
-    results = []
-    seen_urls = set()
-    li_at = os.environ.get("LI_AT_COOKIE", "")
+    results: list[dict] = []
+    seen_urls: set[str] = set()
 
-    def on_data(data: EventData):
-        url = data.link or ""
-        if not url or url in seen_urls:
-            return
-        seen_urls.add(url)
+    for keyword in KEYWORDS:
+        for location in LOCATIONS:
+            for page in range(MAX_PAGES_PER_QUERY):
+                start = page * RESULTS_PER_PAGE
+                url = _build_guest_url(keyword, location, start)
 
-        results.append({
-            "title": data.title or "N/A",
-            "company": data.company or "N/A",
-            "location": getattr(data, "location", None) or getattr(data, "place", None) or "N/A",
-            "url": url,
-            "source": "LinkedIn",
-            "date_posted": str(data.date) if data.date else "Recent",
-        })
+                try:
+                    response = requests.get(url, headers=HEADERS, timeout=20)
+                    response.raise_for_status()
+                    parsed = _parse_cards(response.text)
 
-    def on_metrics(metrics: EventMetrics):
-        logger.info(f"LinkedIn metrics: {metrics}")
+                    new_count = 0
+                    for job in parsed:
+                        job_url = job.get("url", "")
+                        if not job_url or job_url in seen_urls:
+                            continue
+                        seen_urls.add(job_url)
+                        results.append(job)
+                        new_count += 1
 
-    def on_error(error):
-        logger.error(f"LinkedIn error: {error}")
+                    logger.info(
+                        "LinkedIn guest scrape: keyword='%s' location='%s' page=%s parsed=%s new=%s",
+                        keyword,
+                        location,
+                        page + 1,
+                        len(parsed),
+                        new_count,
+                    )
 
-    def on_end():
-        logger.info(f"LinkedIn done. {len(results)} results.")
+                    # If a page has no cards, remaining pages are usually empty too.
+                    if not parsed:
+                        break
 
-    if not li_at:
-        logger.warning("LI_AT_COOKIE is missing. LinkedIn may return 0 jobs in anonymous mode.")
+                    time.sleep(1.0)
+                except Exception as error:
+                    logger.error(
+                        "LinkedIn guest scrape failed: keyword='%s' location='%s' page=%s error=%s",
+                        keyword,
+                        location,
+                        page + 1,
+                        error,
+                    )
+                    break
 
-    scraper = LinkedinScraper(
-        chrome_executable_path=None,
-        headless=True,
-        max_workers=1,
-        slow_mo=2.0,
-        page_load_timeout=40,
-    )
-
-    if li_at:
-        scraper.cookies = [{"name": "li_at", "value": li_at, "domain": ".linkedin.com"}]
-
-    scraper.on(Events.DATA, on_data)
-    scraper.on(Events.METRICS, on_metrics)
-    scraper.on(Events.ERROR, on_error)
-    scraper.on(Events.END, on_end)
-
-    strict_queries = _build_queries(KEYWORDS, strict=True)
-    try:
-        scraper.run(strict_queries)
-    except Exception as error:
-        logger.error(f"LinkedIn strict pass failed: {error}")
-
-    # Fallback if strict pass under-delivers.
-    if len(results) < 8:
-        logger.info("LinkedIn strict pass returned few jobs; running relaxed fallback queries.")
-        fallback_queries = _build_queries(FALLBACK_KEYWORDS, strict=False)
-        try:
-            scraper.run(fallback_queries)
-        except Exception as error:
-            logger.error(f"LinkedIn fallback pass failed: {error}")
-
+    logger.info("LinkedIn scraping done. Found %s unique results.", len(results))
     return results
