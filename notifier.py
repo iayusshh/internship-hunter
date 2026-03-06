@@ -28,11 +28,13 @@ def _build_html(jobs: list[dict]) -> str:
     for source, items in by_source.items():
         rows = ""
         for j in items:
+            stipend = j.get("stipend", "")
+            stipend_html = f"<br><span style=\"color:#0f766e;font-size:12px;\">Stipend: {stipend}</span>" if stipend else ""
             rows += f"""
             <tr>
               <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;">
                 <a href="{j['url']}" style="color:#4f46e5;font-weight:600;text-decoration:none;">{j['title']}</a><br>
-                <span style="color:#555;font-size:13px;">{j['company']}</span>
+                <span style="color:#555;font-size:13px;">{j['company']}</span>{stipend_html}
               </td>
               <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;color:#666;font-size:13px;">{j['location']}</td>
               <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;font-size:13px;">
@@ -104,10 +106,12 @@ def _build_telegram_message(jobs: list[dict]) -> list[str]:
     current = header
 
     for i, j in enumerate(jobs, 1):
+        stipend_line = f"💸 {j['stipend']}\n" if j.get("stipend") else ""
         entry = (
             f"*{i}. {j['title']}*\n"
             f"🏢 {j['company']}\n"
             f"📍 {j['location']}\n"
+            f"{stipend_line}"
             f"🔗 [Apply Here]({j['url']})\n"
             f"_Source: {j['source']}_\n\n"
         )

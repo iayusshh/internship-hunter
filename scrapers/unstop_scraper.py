@@ -22,6 +22,30 @@ SEARCH_KEYWORDS = [
     "machine learning",
 ]
 
+
+def _extract_unstop_stipend(item: dict) -> str:
+    stipend_candidates = [
+        item.get("stipend"),
+        item.get("stipend_salary"),
+        item.get("salary"),
+        item.get("rewards"),
+        item.get("currency_package"),
+    ]
+    for value in stipend_candidates:
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        if isinstance(value, (int, float)):
+            return str(value)
+    return ""
+
+
+def _extract_unstop_paid_flag(item: dict) -> bool | None:
+    for key in ["is_paid", "paid", "is_stipend", "has_stipend"]:
+        value = item.get(key)
+        if isinstance(value, bool):
+            return value
+    return None
+
 def scrape_unstop() -> list[dict]:
     results = []
     seen_ids = set()
@@ -36,7 +60,7 @@ def scrape_unstop() -> list[dict]:
                 "per_page": 20,
                 "page": 1,
                 "filterByType": "2",         # 2 = Internship
-                "filterByWorkplace": "1,2",  # 1=Remote, 2=Hybrid
+                "filterByWorkplace": "1,2,3",  # 1=Remote, 2=Hybrid, 3=On-site
             }
 
             response = requests.get(api_url, headers=HEADERS, params=params, timeout=15)
@@ -60,6 +84,8 @@ def scrape_unstop() -> list[dict]:
                     org = item.get("organisation", {})
                     company = org.get("name") if isinstance(org, dict) else str(org or "N/A")
                     location = item.get("location") or item.get("city") or "Remote"
+                    stipend = _extract_unstop_stipend(item)
+                    paid = _extract_unstop_paid_flag(item)
                     slug = item.get("public_url") or item.get("slug") or ""
                     url = f"https://unstop.com/{slug}" if slug and not slug.startswith("http") else slug or f"https://unstop.com/jobs/{opp_id}"
 
@@ -70,6 +96,8 @@ def scrape_unstop() -> list[dict]:
                         "url": url,
                         "source": "Unstop",
                         "date_posted": item.get("start_date") or "Recent",
+                        "stipend": stipend,
+                        "paid": paid,
                     })
                 except Exception as e:
                     logger.warning(f"Error parsing Unstop item: {e}")

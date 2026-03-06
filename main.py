@@ -13,6 +13,7 @@ from scrapers.linkedin_scraper import scrape_linkedin
 from scrapers.internshala_scraper import scrape_internshala
 from scrapers.unstop_scraper import scrape_unstop
 from deduplicator import filter_new_jobs
+from job_filters import filter_relevant_jobs
 from notifier import send_email, send_telegram
 
 logging.basicConfig(
@@ -59,8 +60,12 @@ def main():
 
     logger.info(f"Total raw results: {len(all_jobs)}")
 
+    # Keep only paid, tech-focused internships (dev/devops/AI-ML/SE/SDE/SOE).
+    relevant_jobs = filter_relevant_jobs(all_jobs)
+    logger.info(f"Relevant jobs after role+paid filters: {len(relevant_jobs)}")
+
     # ── Deduplication ─────────────────────────
-    new_jobs = filter_new_jobs(all_jobs)
+    new_jobs = filter_new_jobs(relevant_jobs)
     logger.info(f"New (unseen) jobs after deduplication: {len(new_jobs)}")
 
     # ── Notify ────────────────────────────────

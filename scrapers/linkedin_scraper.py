@@ -8,7 +8,6 @@ from linkedin_jobs_scraper.filters import (
     TimeFilters,
     TypeFilters,
     ExperienceLevelFilters,
-    OnSiteOrRemoteFilters,
 )
 
 logger = logging.getLogger(__name__)
@@ -75,14 +74,10 @@ def scrape_linkedin() -> list[dict]:
                         filters=QueryFilters(
                             relevance=RelevanceFilters.RECENT,
                             time=TimeFilters.DAY,
-                            type=[TypeFilters.INTERNSHIP, TypeFilters.FULL_TIME],
+                            type=[TypeFilters.INTERNSHIP],
                             experience=[
                                 ExperienceLevelFilters.INTERNSHIP,
                                 ExperienceLevelFilters.ENTRY_LEVEL,
-                            ],
-                            on_site_or_remote=[
-                                OnSiteOrRemoteFilters.REMOTE,
-                                OnSiteOrRemoteFilters.HYBRID,
                             ],
                         ),
                     ),
