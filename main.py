@@ -23,9 +23,35 @@ logging.basicConfig(
 )
 logger = logging.getLogger("main")
 
+SOURCE_CAP_LINKEDIN_INDIAN = int(os.environ.get("SOURCE_CAP_LINKEDIN_INDIAN", "15"))
+SOURCE_CAP_LINKEDIN_OFFSHORE = int(os.environ.get("SOURCE_CAP_LINKEDIN_OFFSHORE", "5"))
 SOURCE_CAP_INTERNSHALA = int(os.environ.get("SOURCE_CAP_INTERNSHALA", "5"))
 SOURCE_CAP_UNSTOP = int(os.environ.get("SOURCE_CAP_UNSTOP", "5"))
-SOURCE_CAP_LINKEDIN = int(os.environ.get("SOURCE_CAP_LINKEDIN", "40"))
+
+INDIAN_LOCATION_HINTS = [
+    "india",
+    "bengaluru",
+    "bangalore",
+    "hyderabad",
+    "pune",
+    "mumbai",
+    "delhi",
+    "noida",
+    "gurgaon",
+    "chennai",
+    "kolkata",
+    "ahmedabad",
+    "coimbatore",
+    "kochi",
+    "jaipur",
+]
+
+
+def _is_indian_listing(job: dict) -> bool:
+    location = str(job.get("location", "")).lower()
+    company = str(job.get("company", "")).lower()
+    haystack = f"{location} {company}"
+    return any(token in haystack for token in INDIAN_LOCATION_HINTS)
 
 
 def _prioritize_sources(jobs: list[dict]) -> list[dict]:
@@ -35,9 +61,20 @@ def _prioritize_sources(jobs: list[dict]) -> list[dict]:
     other = [j for j in jobs if j.get("source") not in {"LinkedIn", "Internshala", "Unstop"}]
 
     linkedin = sorted(linkedin, key=quality_score, reverse=True)
+    linkedin_indian = [j for j in linkedin if _is_indian_listing(j)]
+    linkedin_offshore = [j for j in linkedin if not _is_indian_listing(j)]
 
     selected = []
-    selected.extend(linkedin[:SOURCE_CAP_LINKEDIN])
+    selected.extend(linkedin_indian[:SOURCE_CAP_LINKEDIN_INDIAN])
+    selected.extend(linkedin_offshore[:SOURCE_CAP_LINKEDIN_OFFSHORE])
+
+    # Backfill from the opposite LinkedIn bucket if one side has fewer than requested.
+    linkedin_total_cap = SOURCE_CAP_LINKEDIN_INDIAN + SOURCE_CAP_LINKEDIN_OFFSHORE
+    if len(selected) < linkedin_total_cap:
+        already = {j.get("url", "") for j in selected}
+        remainder = [j for j in linkedin if j.get("url", "") not in already]
+        selected.extend(remainder[: linkedin_total_cap - len(selected)])
+
     selected.extend(internshala[:SOURCE_CAP_INTERNSHALA])
     selected.extend(unstop[:SOURCE_CAP_UNSTOP])
     selected.extend(other)
@@ -101,9 +138,10 @@ def main():
 
     selected_jobs = _prioritize_sources(new_jobs)
     logger.info(
-        "Selected jobs for delivery: %s (LinkedIn<=%s prioritized, Internshala<=%s, Unstop<=%s)",
+        "Selected jobs for delivery: %s (LinkedIn India<=%s, LinkedIn offshore<=%s, Internshala<=%s, Unstop<=%s)",
         len(selected_jobs),
-        SOURCE_CAP_LINKEDIN,
+        SOURCE_CAP_LINKEDIN_INDIAN,
+        SOURCE_CAP_LINKEDIN_OFFSHORE,
         SOURCE_CAP_INTERNSHALA,
         SOURCE_CAP_UNSTOP,
     )
