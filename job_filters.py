@@ -54,6 +54,18 @@ TECH_EXCLUDE_KEYWORDS = [
     "logistics",
 ]
 
+SENIORITY_EXCLUDE_KEYWORDS = [
+    "senior",
+    "sr.",
+    "lead",
+    "principal",
+    "staff engineer",
+    "architect",
+    "manager",
+    "head of",
+    "director",
+]
+
 PAID_BLOCKLIST = [
     "unpaid",
     "without stipend",
@@ -79,7 +91,34 @@ def is_tech_role(title: str) -> bool:
         return False
     if any(word in role for word in TECH_EXCLUDE_KEYWORDS):
         return False
+    if any(word in role for word in SENIORITY_EXCLUDE_KEYWORDS):
+        return False
     return any(word in role for word in TECH_INCLUDE_KEYWORDS)
+
+
+def _extract_amounts(stipend_text: str) -> list[int]:
+    values = re.findall(r"\d[\d,]*", stipend_text or "")
+    amounts = []
+    for value in values:
+        num = value.replace(",", "")
+        if num.isdigit():
+            amounts.append(int(num))
+    return amounts
+
+
+def _passes_min_stipend(stipend_text: str, minimum_inr: int) -> bool:
+    if minimum_inr <= 0:
+        return True
+    stipend = _normalize(stipend_text)
+    amounts = _extract_amounts(stipend_text)
+    if not amounts:
+        return False
+
+    # For INR-looking stipends, enforce minimum; for other currencies keep if paid.
+    looks_inr = any(token in stipend for token in ["₹", "rs", "inr"]) or "$" not in stipend
+    if looks_inr:
+        return max(amounts) >= minimum_inr
+    return True
 
 
 def _is_paid_text(stipend_text: str) -> bool:
@@ -96,10 +135,13 @@ def _is_paid_text(stipend_text: str) -> bool:
 
 def is_paid_internship(job: dict) -> bool:
     strict_paid_only = os.environ.get("STRICT_PAID_ONLY", "true").lower() == "true"
+    min_stipend_inr = int(os.environ.get("MIN_STIPEND_INR", "5000"))
 
     stipend = str(job.get("stipend", "")).strip()
     if stipend:
-        return _is_paid_text(stipend)
+        if not _is_paid_text(stipend):
+            return False
+        return _passes_min_stipend(stipend, min_stipend_inr)
 
     paid_flag = job.get("paid")
     if isinstance(paid_flag, bool):

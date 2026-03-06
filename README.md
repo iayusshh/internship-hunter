@@ -118,9 +118,17 @@ export GMAIL_APP_PASSWORD="xxxx xxxx xxxx xxxx"
 export TELEGRAM_BOT_TOKEN="7312345678:AAFxyz..."
 export TELEGRAM_CHAT_ID="123456789"
 export LI_AT_COOKIE="your_li_at_value"
+export STRICT_PAID_ONLY="true"
+export MIN_STIPEND_INR="5000"
+export SOURCE_CAP_INTERNSHALA="5"
+export SOURCE_CAP_UNSTOP="5"
 
 python main.py
 ```
+
+`STRICT_PAID_ONLY=true` drops listings without clear stipend data.
+`MIN_STIPEND_INR=5000` removes very low-paying internships (for INR listings).
+`SOURCE_CAP_INTERNSHALA=5` and `SOURCE_CAP_UNSTOP=5` keep non-LinkedIn noise low.
 
 ---
 
