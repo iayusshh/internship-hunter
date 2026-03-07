@@ -24,9 +24,11 @@ KEYWORDS = [
     "machine learning intern",
     "ai engineer intern",
     "data engineer intern",
+    "data science intern",
+    "quality assurance intern","software testing intern","test engineer intern","qa engineer intern","site reliability intern","sre intern","platform engineer intern","artificial intelligence intern","ml intern","android intern","ios intern","web developer intern","app developer intern","mobile developer intern"
 ]
 
-LOCATIONS = ["India", "Remote", "United States"]
+LOCATIONS = ["India", "Remote", "United States", "Europe", "Asia", "England", "Germany", "Netherlands", "France", "Canada", "Australia", "New Zealand", "Singapore", "UAE", "Middle East", "Iran","Indonesia","Philippines","Vietnam","China","Japan","South Korea"]
 MAX_PAGES_PER_QUERY = int(os.environ.get("LINKEDIN_MAX_PAGES", "1"))
 RESULTS_PER_PAGE = 25
 
@@ -36,7 +38,7 @@ def _build_guest_url(keyword: str, location: str, start: int) -> str:
         "keywords": keyword,
         "location": location,
         "start": start,
-        "f_TPR": "r604800",  # last 7 days
+        "f_TPR": "r86400",  # last 1 day
         "f_E": "1,2",  # internship/entry level-ish
     }
     return f"https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?{urlencode(params)}"
