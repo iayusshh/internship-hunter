@@ -122,8 +122,9 @@ export STRICT_PAID_ONLY="true"
 export MIN_STIPEND_INR="5000"
 export SOURCE_CAP_INTERNSHALA="5"
 export SOURCE_CAP_UNSTOP="5"
-export SOURCE_CAP_LINKEDIN_INDIAN="15"
-export SOURCE_CAP_LINKEDIN_OFFSHORE="5"
+export SOURCE_CAP_LINKEDIN_INDIAN="10"
+export SOURCE_CAP_LINKEDIN_OFFSHORE="10"
+export LINKEDIN_MAX_PER_OFFSHORE_COUNTRY="3"
 export LINKEDIN_MAX_PAGES="1"
 export LINKEDIN_MIN_QUALITY="6"
 
@@ -133,7 +134,8 @@ python main.py
 `STRICT_PAID_ONLY=true` drops listings without clear stipend data.
 `MIN_STIPEND_INR=5000` removes very low-paying internships (for INR listings).
 `SOURCE_CAP_INTERNSHALA=5` and `SOURCE_CAP_UNSTOP=5` keep non-LinkedIn noise low.
-`SOURCE_CAP_LINKEDIN_INDIAN=15` and `SOURCE_CAP_LINKEDIN_OFFSHORE=5` enforce your LinkedIn split.
+`SOURCE_CAP_LINKEDIN_INDIAN=10` and `SOURCE_CAP_LINKEDIN_OFFSHORE=10` enforce your LinkedIn split.
+`LINKEDIN_MAX_PER_OFFSHORE_COUNTRY=3` caps offshore diversity per country.
 `LINKEDIN_MAX_PAGES=1` keeps scrape breadth focused.
 `LINKEDIN_MIN_QUALITY=6` keeps only stronger LinkedIn matches.
 

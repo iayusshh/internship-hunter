@@ -23,8 +23,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("main")
 
-SOURCE_CAP_LINKEDIN_INDIAN = int(os.environ.get("SOURCE_CAP_LINKEDIN_INDIAN", "15"))
-SOURCE_CAP_LINKEDIN_OFFSHORE = int(os.environ.get("SOURCE_CAP_LINKEDIN_OFFSHORE", "5"))
+SOURCE_CAP_LINKEDIN_INDIAN = int(os.environ.get("SOURCE_CAP_LINKEDIN_INDIAN", "10"))
+SOURCE_CAP_LINKEDIN_OFFSHORE = int(os.environ.get("SOURCE_CAP_LINKEDIN_OFFSHORE", "10"))
+LINKEDIN_MAX_PER_OFFSHORE_COUNTRY = int(os.environ.get("LINKEDIN_MAX_PER_OFFSHORE_COUNTRY", "3"))
 SOURCE_CAP_INTERNSHALA = int(os.environ.get("SOURCE_CAP_INTERNSHALA", "5"))
 SOURCE_CAP_UNSTOP = int(os.environ.get("SOURCE_CAP_UNSTOP", "5"))
 
@@ -54,6 +55,54 @@ def _is_indian_listing(job: dict) -> bool:
     return any(token in haystack for token in INDIAN_LOCATION_HINTS)
 
 
+def _infer_country(job: dict) -> str:
+    location = str(job.get("location", "")).lower().strip()
+    if _is_indian_listing(job):
+        return "India"
+
+    country_aliases = {
+        "united states": "United States",
+        "usa": "United States",
+        "u.s.": "United States",
+        "canada": "Canada",
+        "australia": "Australia",
+        "new zealand": "New Zealand",
+        "england": "United Kingdom",
+        "united kingdom": "United Kingdom",
+        "uk": "United Kingdom",
+        "germany": "Germany",
+        "netherlands": "Netherlands",
+        "france": "France",
+        "singapore": "Singapore",
+        "uae": "UAE",
+        "united arab emirates": "UAE",
+        "indonesia": "Indonesia",
+        "philippines": "Philippines",
+        "vietnam": "Vietnam",
+        "china": "China",
+        "japan": "Japan",
+        "south korea": "South Korea",
+        "iran": "Iran",
+        "europe": "Europe",
+        "asia": "Asia",
+        "middle east": "Middle East",
+        "remote": "Remote",
+        "worldwide": "Worldwide",
+    }
+
+    for alias, country in country_aliases.items():
+        if alias in location:
+            return country
+
+    # Fallback: use trailing location segment if available (e.g., "Berlin, Germany").
+    if "," in location:
+        tail = location.split(",")[-1].strip()
+        if tail:
+            return tail.title()
+
+    return "Other"
+
+
 def _prioritize_sources(jobs: list[dict]) -> list[dict]:
     linkedin = [j for j in jobs if j.get("source") == "LinkedIn"]
     internshala = [j for j in jobs if j.get("source") == "Internshala"]
@@ -66,14 +115,19 @@ def _prioritize_sources(jobs: list[dict]) -> list[dict]:
 
     selected = []
     selected.extend(linkedin_indian[:SOURCE_CAP_LINKEDIN_INDIAN])
-    selected.extend(linkedin_offshore[:SOURCE_CAP_LINKEDIN_OFFSHORE])
 
-    # Backfill from the opposite LinkedIn bucket if one side has fewer than requested.
-    linkedin_total_cap = SOURCE_CAP_LINKEDIN_INDIAN + SOURCE_CAP_LINKEDIN_OFFSHORE
-    if len(selected) < linkedin_total_cap:
-        already = {j.get("url", "") for j in selected}
-        remainder = [j for j in linkedin if j.get("url", "") not in already]
-        selected.extend(remainder[: linkedin_total_cap - len(selected)])
+    offshore_selected = []
+    offshore_country_counts: dict[str, int] = {}
+    for job in linkedin_offshore:
+        if len(offshore_selected) >= SOURCE_CAP_LINKEDIN_OFFSHORE:
+            break
+        country = _infer_country(job)
+        if offshore_country_counts.get(country, 0) >= LINKEDIN_MAX_PER_OFFSHORE_COUNTRY:
+            continue
+        offshore_country_counts[country] = offshore_country_counts.get(country, 0) + 1
+        offshore_selected.append(job)
+
+    selected.extend(offshore_selected)
 
     selected.extend(internshala[:SOURCE_CAP_INTERNSHALA])
     selected.extend(unstop[:SOURCE_CAP_UNSTOP])
@@ -138,10 +192,11 @@ def main():
 
     selected_jobs = _prioritize_sources(new_jobs)
     logger.info(
-        "Selected jobs for delivery: %s (LinkedIn India<=%s, LinkedIn offshore<=%s, Internshala<=%s, Unstop<=%s)",
+        "Selected jobs for delivery: %s (LinkedIn India<=%s, LinkedIn offshore<=%s, max %s per offshore country, Internshala<=%s, Unstop<=%s)",
         len(selected_jobs),
         SOURCE_CAP_LINKEDIN_INDIAN,
         SOURCE_CAP_LINKEDIN_OFFSHORE,
+        LINKEDIN_MAX_PER_OFFSHORE_COUNTRY,
         SOURCE_CAP_INTERNSHALA,
         SOURCE_CAP_UNSTOP,
     )
