@@ -108,6 +108,10 @@ DUBIOUS_COMPANY_KEYWORDS = [
 
 DEFAULT_BLOCKED_COMPANIES = [
     "unified mentor",
+    "webs it solution",
+    "dexter's tech",
+    "zenithbyte",
+    "lensa",
 ]
 
 US_ONLY_HINTS = [
