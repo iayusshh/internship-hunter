@@ -127,6 +127,8 @@ export SOURCE_CAP_LINKEDIN_OFFSHORE="10"
 export LINKEDIN_MAX_PER_OFFSHORE_COUNTRY="3"
 export LINKEDIN_MAX_PAGES="1"
 export LINKEDIN_MIN_QUALITY="6"
+export EXCLUDE_US_ONLY_ROLES="true"
+export BLACKLIST_COMPANIES="unified mentor"
 
 python main.py
 ```
@@ -138,6 +140,8 @@ python main.py
 `LINKEDIN_MAX_PER_OFFSHORE_COUNTRY=3` caps offshore diversity per country.
 `LINKEDIN_MAX_PAGES=1` keeps scrape breadth focused.
 `LINKEDIN_MIN_QUALITY=6` keeps only stronger LinkedIn matches.
+`EXCLUDE_US_ONLY_ROLES=true` removes likely US-work-authorized-only listings.
+`BLACKLIST_COMPANIES` accepts comma-separated company names to hard-block.
 
 ---
 

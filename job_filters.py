@@ -106,6 +106,30 @@ DUBIOUS_COMPANY_KEYWORDS = [
     "hr services",
 ]
 
+DEFAULT_BLOCKED_COMPANIES = [
+    "unified mentor",
+]
+
+US_ONLY_HINTS = [
+    "united states",
+    "usa",
+    "u.s.",
+    "us only",
+    "u.s. only",
+    "us residents only",
+    "authorized to work in the us",
+    "work authorization",
+    "visa sponsorship not available",
+    "must be based in us",
+]
+
+GLOBAL_FRIENDLY_HINTS = [
+    "worldwide",
+    "global",
+    "anywhere",
+    "international",
+]
+
 
 def _normalize(text: str) -> str:
     text = (text or "").lower().strip()
@@ -139,6 +163,36 @@ def _looks_dubious(job: dict) -> bool:
     if any(token in company for token in DUBIOUS_COMPANY_KEYWORDS):
         return True
     return False
+
+
+def _get_blocked_companies() -> set[str]:
+    from_env = os.environ.get("BLACKLIST_COMPANIES", "")
+    extra = [item.strip().lower() for item in from_env.split(",") if item.strip()]
+    return set(DEFAULT_BLOCKED_COMPANIES + extra)
+
+
+def _is_blocked_company(job: dict) -> bool:
+    company = _normalize(str(job.get("company", "")))
+    if not company:
+        return False
+    blocked = _get_blocked_companies()
+    return any(token in company for token in blocked)
+
+
+def _likely_us_only_role(job: dict) -> bool:
+    text = _normalize(
+        " ".join(
+            [
+                str(job.get("title", "")),
+                str(job.get("company", "")),
+                str(job.get("location", "")),
+                str(job.get("url", "")),
+            ]
+        )
+    )
+    has_us_hint = any(token in text for token in US_ONLY_HINTS)
+    has_global_hint = any(token in text for token in GLOBAL_FRIENDLY_HINTS)
+    return has_us_hint and not has_global_hint
 
 
 def quality_score(job: dict) -> int:
@@ -224,15 +278,21 @@ def is_paid_internship(job: dict) -> bool:
 def filter_relevant_jobs(jobs: list[dict]) -> list[dict]:
     linkedin_min_quality = int(os.environ.get("LINKEDIN_MIN_QUALITY", "6"))
     require_linkedin_intern = os.environ.get("LINKEDIN_REQUIRE_INTERNSHIP_HINT", "true").lower() == "true"
+    exclude_us_only_roles = os.environ.get("EXCLUDE_US_ONLY_ROLES", "true").lower() == "true"
 
     filtered = []
     for job in jobs:
         source = str(job.get("source", "")).strip().lower()
         title = str(job.get("title", ""))
 
+        if _is_blocked_company(job):
+            continue
         if not is_tech_role(title):
             continue
         if _looks_dubious(job):
+            continue
+
+        if exclude_us_only_roles and _likely_us_only_role(job):
             continue
 
         if source == "linkedin" and require_linkedin_intern and not _is_internship_like(job):
