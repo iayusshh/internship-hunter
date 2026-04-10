@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import logging
 import time
 
+from config_manager import load_config
+
 logger = logging.getLogger(__name__)
 
 HEADERS = {
@@ -10,15 +12,9 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-SEARCH_TERMS = [
-    "software-engineer",
-    "full-stack-developer",
-    "web-developer",
-    "frontend-developer",
-    "backend-developer",
-    "artificial-intelligence",
-    "machine-learning",
-]
+
+def _get_search_terms() -> list[str]:
+    return load_config()["search"]["internshala_terms"]
 
 
 def _extract_stipend_text(card) -> str:
@@ -33,7 +29,7 @@ def scrape_internshala() -> list[dict]:
     results = []
     seen_urls = set()
 
-    for term in SEARCH_TERMS:
+    for term in _get_search_terms():
         # Cover both remote and on-site listings.
         urls = [
             f"https://internshala.com/internships/{term}-internship/work-from-home-jobs",

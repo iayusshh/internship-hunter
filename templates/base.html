@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Internship Hunter{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <!-- ── Sidebar ───────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <div class="sb-brand-icon">IH</div>
+      <div class="sb-brand-text">
+        <strong>Internship Hunter</strong>
+        <span>Config Panel</span>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="sb-section">Overview</div>
+      <a href="{{ url_for('dashboard') }}"
+         class="sb-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+        <span class="icon">DB</span>
+        <span>Dashboard</span>
+      </a>
+
+      <div class="sb-section">Search</div>
+      <a href="{{ url_for('search') }}"
+         class="sb-link {% if request.endpoint == 'search' %}active{% endif %}">
+        <span class="icon">SR</span>
+        <span>Keywords &amp; Locations</span>
+      </a>
+
+      <div class="sb-section">Filters</div>
+      <a href="{{ url_for('filters') }}"
+         class="sb-link {% if request.endpoint == 'filters' %}active{% endif %}">
+        <span class="icon">RF</span>
+        <span>Role Filters</span>
+      </a>
+      <a href="{{ url_for('blocked') }}"
+         class="sb-link {% if request.endpoint == 'blocked' %}active{% endif %}">
+        <span class="icon">BL</span>
+        <span>Block Lists</span>
+      </a>
+
+      <div class="sb-section">Delivery</div>
+      <a href="{{ url_for('sources') }}"
+         class="sb-link {% if request.endpoint == 'sources' %}active{% endif %}">
+        <span class="icon">SC</span>
+        <span>Source Caps</span>
+      </a>
+      <a href="{{ url_for('locations') }}"
+         class="sb-link {% if request.endpoint == 'locations' %}active{% endif %}">
+        <span class="icon">LR</span>
+        <span>Location Rules</span>
+      </a>
+      <a href="{{ url_for('notifications') }}"
+         class="sb-link {% if request.endpoint == 'notifications' %}active{% endif %}">
+        <span class="icon">NT</span>
+        <span>Notifications</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- ── Main ─────────────────────────────────── -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-title">{% block topbar_title %}Internship Hunter{% endblock %}</div>
+      <div class="topbar-actions">
+        <span class="topbar-meta">Changes are saved to <code>config.json</code></span>
+      </div>
+    </header>
+
+    <div class="page-content">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+
+  <!-- ── Toast container ──────────────────────── -->
+  <div class="toast-container" id="toastContainer">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="toast {{ category }}" data-auto-dismiss>
+            <span>{% if category == 'success' %}✓{% else %}✕{% endif %}</span>
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <!-- ── Global JS ─────────────────────────────── -->
+  <script>
+  // Auto-dismiss toasts
+  document.querySelectorAll('[data-auto-dismiss]').forEach(el => {
+    setTimeout(() => el.style.opacity = '0', 3000);
+    setTimeout(() => el.remove(), 3300);
+  });
+
+  // Ctrl/Cmd+S to save active form
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      const form = document.querySelector('form');
+      if (form) {
+        syncAllTagFields();
+        form.submit();
+      }
+    }
+  });
+
+  // ── Tag / Chip Input ────────────────────────
+  function syncAllTagFields() {
+    document.querySelectorAll('[data-tag-field]').forEach(container => {
+      const hiddenName = container.dataset.tagField;
+      const hidden = document.getElementById('hidden_' + hiddenName);
+      if (!hidden) return;
+      const tags = [...container.querySelectorAll('.tag')].map(t => t.dataset.value);
+      hidden.value = tags.join('\n');
+    });
+  }
+
+  function buildTagField(container) {
+    const hiddenName = container.dataset.tagField;
+    const hidden = document.getElementById('hidden_' + hiddenName);
+    if (!hidden) return;
+
+    // Parse existing values
+    const values = hidden.value.split('\n').map(v => v.trim()).filter(Boolean);
+    const countEl = container.closest('.field')?.querySelector('.tag-count');
+
+    function renderTags() {
+      // Remove existing tags + input
+      container.querySelectorAll('.tag, .tag-input').forEach(el => el.remove());
+      const tags = [...container.querySelectorAll('.tag')]; // empty now
+
+      values.forEach((v, i) => {
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.dataset.value = v;
+        tag.innerHTML = `${escHtml(v)}<button type="button" class="tag-remove" title="Remove">✕</button>`;
+        tag.querySelector('.tag-remove').addEventListener('click', () => {
+          values.splice(i, 1);
+          renderTags();
+          syncCount();
+        });
+        container.appendChild(tag);
+      });
+
+      const input = document.createElement('input');
+      input.className = 'tag-input';
+      input.type = 'text';
+      input.placeholder = 'Type and press Enter…';
+      input.setAttribute('autocomplete', 'off');
+      input.setAttribute('spellcheck', 'false');
+      container.appendChild(input);
+
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const val = input.value.trim().toLowerCase();
+          if (val && !values.includes(val)) {
+            values.push(val);
+            renderTags();
+            syncCount();
+            // Focus new input
+            container.querySelector('.tag-input')?.focus();
+          } else {
+            input.value = '';
+          }
+        } else if (e.key === 'Backspace' && input.value === '' && values.length) {
+          values.pop();
+          renderTags();
+          syncCount();
+        }
+      });
+
+      input.addEventListener('blur', () => {
+        const val = input.value.trim().toLowerCase();
+        if (val && !values.includes(val)) {
+          values.push(val);
+          renderTags();
+          syncCount();
+        }
+      });
+
+      container.onclick = () => container.querySelector('.tag-input')?.focus();
+      syncHidden();
+    }
+
+    function syncHidden() {
+      hidden.value = values.join('\n');
+    }
+
+    function syncCount() {
+      if (countEl) countEl.textContent = values.length + ' items';
+    }
+
+    renderTags();
+    syncCount();
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Init all tag fields on the page
+  document.querySelectorAll('[data-tag-field]').forEach(buildTagField);
+
+  // Sync hidden inputs before submit
+  document.querySelectorAll('form').forEach(form => {
+    form.addEventListener('submit', syncAllTagFields);
+  });
+
+  // ── Stepper buttons ──────────────────────────
+  document.querySelectorAll('.stepper').forEach(s => {
+    const input = s.querySelector('.stepper-input');
+    s.querySelector('.stepper-dec')?.addEventListener('click', () => {
+      const min = parseInt(input.min || 0);
+      input.value = Math.max(min, parseInt(input.value || 0) - 1);
+    });
+    s.querySelector('.stepper-inc')?.addEventListener('click', () => {
+      const max = parseInt(input.max || 9999);
+      input.value = Math.min(max, parseInt(input.value || 0) + 1);
+    });
+  });
+
+  // ── Animated counters (dashboard) ────────────
+  document.querySelectorAll('[data-count]').forEach(el => {
+    const target = parseInt(el.dataset.count, 10);
+    let current = 0;
+    const step = Math.ceil(target / 20);
+    const tick = setInterval(() => {
+      current = Math.min(current + step, target);
+      el.textContent = el.dataset.prefix ? el.dataset.prefix + current : current;
+      if (current >= target) clearInterval(tick);
+    }, 30);
+  });
+  </script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

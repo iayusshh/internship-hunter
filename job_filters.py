@@ -1,138 +1,11 @@
 import os
 import re
 
+from config_manager import load_config
 
-TECH_INCLUDE_KEYWORDS = [
-    "software engineer",
-    "software developer",
-    "sde",
-    "soe",
-    "full stack",
-    "frontend",
-    "front end",
-    "backend",
-    "back end",
-    "web developer",
-    "app developer",
-    "mobile developer",
-    "android",
-    "ios",
-    "devops",
-    "site reliability",
-    "sre",
-    "platform engineer",
-    "machine learning",
-    "ml",
-    "ai",
-    "artificial intelligence",
-    "data science",
-    "data engineer",
-    "qa engineer",
-    "test engineer",
-    "software testing",
-]
 
-TECH_EXCLUDE_KEYWORDS = [
-    "business",
-    "fundraising",
-    "content writer",
-    "marketing",
-    "sales",
-    "talent acquisition",
-    "human resources",
-    "hr",
-    "operations",
-    "coordination",
-    "charity",
-    "secretary",
-    "travel host",
-    "audit agent",
-    "subject matter expert",
-    "sme",
-    "social sector",
-    "accounting",
-    "logistics",
-]
-
-SENIORITY_EXCLUDE_KEYWORDS = [
-    "senior",
-    "sr.",
-    "lead",
-    "principal",
-    "staff engineer",
-    "architect",
-    "manager",
-    "head of",
-    "director",
-]
-
-PAID_BLOCKLIST = [
-    "unpaid",
-    "without stipend",
-    "no stipend",
-    "volunteer",
-    "incentive based",
-    "performance based",
-    "commission only",
-    "0/month",
-    "0 per month",
-]
-
-INTERNSHIP_HINT_KEYWORDS = [
-    "intern",
-    "internship",
-    "trainee",
-    "apprentice",
-    "graduate program",
-]
-
-DUBIOUS_TITLE_KEYWORDS = [
-    "training",
-    "course",
-    "bootcamp",
-    "mentor",
-    "instructor",
-    "coach",
-    "referral",
-    "commission",
-]
-
-DUBIOUS_COMPANY_KEYWORDS = [
-    "staffing",
-    "recruit",
-    "consultancy",
-    "outsourcing",
-    "talent",
-    "hr services",
-]
-
-DEFAULT_BLOCKED_COMPANIES = [
-    "unified mentor",
-    "webs it solution",
-    "dexter's tech",
-    "zenithbyte",
-    "lensa",
-]
-
-US_ONLY_HINTS = [
-    "united states",
-    "usa",
-    "u.s.",
-    "us only",
-    "u.s. only",
-    "us residents only",
-    "authorized to work in the us",
-    "work authorization",
-    "visa sponsorship not available",
-    "must be based in us",
-]
-
-GLOBAL_FRIENDLY_HINTS = [
-    "worldwide",
-    "global",
-    "anywhere",
-    "international",
-]
+def _cfg() -> dict:
+    return load_config()["filters"]
 
 
 def _normalize(text: str) -> str:
@@ -142,60 +15,59 @@ def _normalize(text: str) -> str:
 
 
 def is_tech_role(title: str) -> bool:
+    cfg = _cfg()
     role = _normalize(title)
     if not role:
         return False
-    if any(word in role for word in TECH_EXCLUDE_KEYWORDS):
+    if any(word in role for word in cfg["tech_exclude_keywords"]):
         return False
-    if any(word in role for word in SENIORITY_EXCLUDE_KEYWORDS):
+    if any(word in role for word in cfg["seniority_exclude_keywords"]):
         return False
-    return any(word in role for word in TECH_INCLUDE_KEYWORDS)
+    return any(word in role for word in cfg["tech_include_keywords"])
 
 
 def _is_internship_like(job: dict) -> bool:
+    cfg = _cfg()
     title = _normalize(str(job.get("title", "")))
     url = _normalize(str(job.get("url", "")))
     text = f"{title} {url}"
-    return any(token in text for token in INTERNSHIP_HINT_KEYWORDS)
+    return any(token in text for token in cfg.get("internship_hint_keywords", [
+        "intern", "internship", "trainee", "apprentice", "graduate program"
+    ]))
 
 
 def _looks_dubious(job: dict) -> bool:
+    cfg = _cfg()
     title = _normalize(str(job.get("title", "")))
     company = _normalize(str(job.get("company", "")))
-    if any(token in title for token in DUBIOUS_TITLE_KEYWORDS):
+    if any(token in title for token in cfg["dubious_title_keywords"]):
         return True
-    if any(token in company for token in DUBIOUS_COMPANY_KEYWORDS):
+    if any(token in company for token in cfg["dubious_company_keywords"]):
         return True
     return False
 
 
-def _get_blocked_companies() -> set[str]:
-    from_env = os.environ.get("BLACKLIST_COMPANIES", "")
-    extra = [item.strip().lower() for item in from_env.split(",") if item.strip()]
-    return set(DEFAULT_BLOCKED_COMPANIES + extra)
-
-
 def _is_blocked_company(job: dict) -> bool:
+    cfg = _cfg()
     company = _normalize(str(job.get("company", "")))
     if not company:
         return False
-    blocked = _get_blocked_companies()
+    blocked = set(cfg["blocked_companies"])
     return any(token in company for token in blocked)
 
 
 def _likely_us_only_role(job: dict) -> bool:
+    cfg = _cfg()
     text = _normalize(
-        " ".join(
-            [
-                str(job.get("title", "")),
-                str(job.get("company", "")),
-                str(job.get("location", "")),
-                str(job.get("url", "")),
-            ]
-        )
+        " ".join([
+            str(job.get("title", "")),
+            str(job.get("company", "")),
+            str(job.get("location", "")),
+            str(job.get("url", "")),
+        ])
     )
-    has_us_hint = any(token in text for token in US_ONLY_HINTS)
-    has_global_hint = any(token in text for token in GLOBAL_FRIENDLY_HINTS)
+    has_us_hint = any(token in text for token in cfg["us_only_hints"])
+    has_global_hint = any(token in text for token in cfg["global_friendly_hints"])
     return has_us_hint and not has_global_hint
 
 
@@ -236,7 +108,6 @@ def _passes_min_stipend(stipend_text: str, minimum_inr: int) -> bool:
     if not amounts:
         return False
 
-    # For INR-looking stipends, enforce minimum; for other currencies keep if paid.
     looks_inr = any(token in stipend for token in ["₹", "rs", "inr"]) or "$" not in stipend
     if looks_inr:
         return max(amounts) >= minimum_inr
@@ -244,20 +115,21 @@ def _passes_min_stipend(stipend_text: str, minimum_inr: int) -> bool:
 
 
 def _is_paid_text(stipend_text: str) -> bool:
+    cfg = _cfg()
     stipend = _normalize(stipend_text)
     if not stipend:
         return False
-    if any(token in stipend for token in PAID_BLOCKLIST):
+    if any(token in stipend for token in cfg["paid_blocklist"]):
         return False
-    # Accept explicit monetary formats.
     if any(sym in stipend for sym in ["₹", "rs", "inr", "$", "eur", "gbp"]):
         return True
     return bool(re.search(r"\b\d{3,}\b", stipend))
 
 
 def is_paid_internship(job: dict) -> bool:
-    strict_paid_only = os.environ.get("STRICT_PAID_ONLY", "true").lower() == "true"
-    min_stipend_inr = int(os.environ.get("MIN_STIPEND_INR", "5000"))
+    cfg = _cfg()
+    strict_paid_only = os.environ.get("STRICT_PAID_ONLY", str(cfg.get("strict_paid_only", True))).lower() in ("true", "1", "yes")
+    min_stipend_inr = int(os.environ.get("MIN_STIPEND_INR", str(cfg.get("min_stipend_inr", 5000))))
     source = str(job.get("source", "")).strip().lower()
 
     stipend = str(job.get("stipend", "")).strip()
@@ -271,18 +143,23 @@ def is_paid_internship(job: dict) -> bool:
         return paid_flag
 
     # LinkedIn listings usually do not expose stipend in search results.
-    # Keep them when strict mode is on, and let title relevance filters do the cleanup.
     if source == "linkedin":
         return True
 
-    # If strict mode is enabled, unknown stipend is dropped.
     return not strict_paid_only
 
 
 def filter_relevant_jobs(jobs: list[dict]) -> list[dict]:
-    linkedin_min_quality = int(os.environ.get("LINKEDIN_MIN_QUALITY", "6"))
-    require_linkedin_intern = os.environ.get("LINKEDIN_REQUIRE_INTERNSHIP_HINT", "true").lower() == "true"
-    exclude_us_only_roles = os.environ.get("EXCLUDE_US_ONLY_ROLES", "true").lower() == "true"
+    cfg = _cfg()
+    linkedin_min_quality = int(os.environ.get("LINKEDIN_MIN_QUALITY", str(cfg.get("linkedin_min_quality", 6))))
+    require_linkedin_intern = os.environ.get(
+        "LINKEDIN_REQUIRE_INTERNSHIP_HINT",
+        str(cfg.get("linkedin_require_internship_hint", True))
+    ).lower() in ("true", "1", "yes")
+    exclude_us_only_roles = os.environ.get(
+        "EXCLUDE_US_ONLY_ROLES",
+        str(cfg.get("exclude_us_only", True))
+    ).lower() in ("true", "1", "yes")
 
     filtered = []
     for job in jobs:

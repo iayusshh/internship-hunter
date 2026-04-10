@@ -9,12 +9,19 @@ import logging
 import sys
 import os
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()  # loads .env when running locally; no-op in CI
+except ImportError:
+    pass
+
 from scrapers.linkedin_scraper import scrape_linkedin
 from scrapers.internshala_scraper import scrape_internshala
 from scrapers.unstop_scraper import scrape_unstop
 from deduplicator import filter_new_jobs
 from job_filters import filter_relevant_jobs, quality_score
 from notifier import send_email, send_telegram
+from config_manager import load_config
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,36 +30,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger("main")
 
-SOURCE_CAP_LINKEDIN_INDIAN = int(os.environ.get("SOURCE_CAP_LINKEDIN_INDIAN", "10"))
-SOURCE_CAP_LINKEDIN_OFFSHORE = int(os.environ.get("SOURCE_CAP_LINKEDIN_OFFSHORE", "10"))
-LINKEDIN_MAX_PER_OFFSHORE_COUNTRY = int(os.environ.get("LINKEDIN_MAX_PER_OFFSHORE_COUNTRY", "3"))
-SOURCE_CAP_INTERNSHALA = int(os.environ.get("SOURCE_CAP_INTERNSHALA", "5"))
-SOURCE_CAP_UNSTOP = int(os.environ.get("SOURCE_CAP_UNSTOP", "5"))
+def _get_source_caps():
+    cfg = load_config()["sources"]
+    return {
+        "linkedin_indian": int(os.environ.get("SOURCE_CAP_LINKEDIN_INDIAN", str(cfg["cap_linkedin_indian"]))),
+        "linkedin_offshore": int(os.environ.get("SOURCE_CAP_LINKEDIN_OFFSHORE", str(cfg["cap_linkedin_offshore"]))),
+        "max_per_offshore_country": int(os.environ.get("LINKEDIN_MAX_PER_OFFSHORE_COUNTRY", str(cfg["max_per_offshore_country"]))),
+        "internshala": int(os.environ.get("SOURCE_CAP_INTERNSHALA", str(cfg["cap_internshala"]))),
+        "unstop": int(os.environ.get("SOURCE_CAP_UNSTOP", str(cfg["cap_unstop"]))),
+    }
 
-INDIAN_LOCATION_HINTS = [
-    "india",
-    "bengaluru",
-    "bangalore",
-    "hyderabad",
-    "pune",
-    "mumbai",
-    "delhi",
-    "noida",
-    "gurgaon",
-    "chennai",
-    "kolkata",
-    "ahmedabad",
-    "coimbatore",
-    "kochi",
-    "jaipur",
-]
+
+def _get_indian_hints() -> list[str]:
+    return load_config()["locations"]["indian_hints"]
 
 
 def _is_indian_listing(job: dict) -> bool:
     location = str(job.get("location", "")).lower()
     company = str(job.get("company", "")).lower()
     haystack = f"{location} {company}"
-    return any(token in haystack for token in INDIAN_LOCATION_HINTS)
+    return any(token in haystack for token in _get_indian_hints())
 
 
 def _infer_country(job: dict) -> str:
@@ -104,6 +101,7 @@ def _infer_country(job: dict) -> str:
 
 
 def _prioritize_sources(jobs: list[dict]) -> list[dict]:
+    caps = _get_source_caps()
     linkedin = [j for j in jobs if j.get("source") == "LinkedIn"]
     internshala = [j for j in jobs if j.get("source") == "Internshala"]
     unstop = [j for j in jobs if j.get("source") == "Unstop"]
@@ -114,23 +112,23 @@ def _prioritize_sources(jobs: list[dict]) -> list[dict]:
     linkedin_offshore = [j for j in linkedin if not _is_indian_listing(j)]
 
     selected = []
-    selected.extend(linkedin_indian[:SOURCE_CAP_LINKEDIN_INDIAN])
+    selected.extend(linkedin_indian[:caps["linkedin_indian"]])
 
     offshore_selected = []
     offshore_country_counts: dict[str, int] = {}
     for job in linkedin_offshore:
-        if len(offshore_selected) >= SOURCE_CAP_LINKEDIN_OFFSHORE:
+        if len(offshore_selected) >= caps["linkedin_offshore"]:
             break
         country = _infer_country(job)
-        if offshore_country_counts.get(country, 0) >= LINKEDIN_MAX_PER_OFFSHORE_COUNTRY:
+        if offshore_country_counts.get(country, 0) >= caps["max_per_offshore_country"]:
             continue
         offshore_country_counts[country] = offshore_country_counts.get(country, 0) + 1
         offshore_selected.append(job)
 
     selected.extend(offshore_selected)
 
-    selected.extend(internshala[:SOURCE_CAP_INTERNSHALA])
-    selected.extend(unstop[:SOURCE_CAP_UNSTOP])
+    selected.extend(internshala[:caps["internshala"]])
+    selected.extend(unstop[:caps["unstop"]])
     selected.extend(other)
     return selected
 
@@ -191,14 +189,15 @@ def main():
     logger.info(f"New by source: {_source_counts(new_jobs)}")
 
     selected_jobs = _prioritize_sources(new_jobs)
+    caps = _get_source_caps()
     logger.info(
         "Selected jobs for delivery: %s (LinkedIn India<=%s, LinkedIn offshore<=%s, max %s per offshore country, Internshala<=%s, Unstop<=%s)",
         len(selected_jobs),
-        SOURCE_CAP_LINKEDIN_INDIAN,
-        SOURCE_CAP_LINKEDIN_OFFSHORE,
-        LINKEDIN_MAX_PER_OFFSHORE_COUNTRY,
-        SOURCE_CAP_INTERNSHALA,
-        SOURCE_CAP_UNSTOP,
+        caps["linkedin_indian"],
+        caps["linkedin_offshore"],
+        caps["max_per_offshore_country"],
+        caps["internshala"],
+        caps["unstop"],
     )
 
     # ── Notify ────────────────────────────────

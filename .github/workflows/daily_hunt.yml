@@ -5,6 +5,9 @@ on:
     - cron: "30 3 * * *"   # 3:30 AM UTC = 9:00 AM IST
   workflow_dispatch:         # allows manual trigger from GitHub UI
 
+permissions:
+  contents: write
+
 jobs:
   hunt:
     runs-on: ubuntu-latest
@@ -14,29 +17,10 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # Restore seen_jobs.json from cache so deduplication persists across runs
-      - name: Restore seen_jobs cache
-        uses: actions/cache@v4
-        with:
-          path: seen_jobs.json
-          key: seen-jobs-${{ github.run_id }}
-          restore-keys: |
-            seen-jobs-
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Install Chrome & ChromeDriver
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q \
-            google-chrome-stable \
-            chromium-driver \
-            || true
-          # Fallback: install chromium if google-chrome is unavailable
-          which google-chrome || sudo apt-get install -y chromium-browser
 
       - name: Install Python dependencies
         run: pip install --no-cache-dir -r requirements.txt
@@ -47,13 +31,13 @@ jobs:
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          LI_AT_COOKIE: ${{ secrets.LI_AT_COOKIE }}
         run: python main.py
 
-      # Save updated seen_jobs.json back to cache
-      - name: Save seen_jobs cache
+      - name: Commit updated seen_jobs.json
         if: always()
-        uses: actions/cache@v4
-        with:
-          path: seen_jobs.json
-          key: seen-jobs-${{ github.run_id }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add seen_jobs.json
+          git diff --cached --quiet || git commit -m "chore: update seen_jobs.json [skip ci]"
+          git push

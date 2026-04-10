@@ -7,9 +7,13 @@ from email.mime.text import MIMEText
 from datetime import date
 import telegram
 
+from config_manager import load_config
+
 logger = logging.getLogger(__name__)
 
-RECIPIENT_EMAIL = "YOUR_EMAIL@example.com"
+
+def _get_recipients() -> list[str]:
+    return load_config()["notifications"]["email_recipients"]
 
 
 # ─────────────────────────────────────────────
@@ -74,23 +78,32 @@ def _build_html(jobs: list[dict]) -> str:
 </html>"""
 
 
-def send_email(jobs: list[dict]):
-    smtp_user = os.environ["GMAIL_USER"]
-    smtp_pass = os.environ["GMAIL_APP_PASSWORD"]
+def send_email(jobs: list[dict]) -> bool:
+    smtp_user = os.environ.get("GMAIL_USER")
+    smtp_pass = os.environ.get("GMAIL_APP_PASSWORD")
+    recipients = _get_recipients()
+
+    if not smtp_user or not smtp_pass:
+        logger.warning("GMAIL_USER or GMAIL_APP_PASSWORD not set — skipping email.")
+        return False
+    if not recipients:
+        logger.warning("No email recipients configured — skipping email.")
+        return False
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"🎯 {len(jobs)} New Internships Today — {date.today().strftime('%b %d')}"
     msg["From"] = smtp_user
-    msg["To"] = RECIPIENT_EMAIL
+    msg["To"] = ", ".join(recipients)
 
     html_body = _build_html(jobs)
     msg.attach(MIMEText(html_body, "html"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(smtp_user, smtp_pass)
-        server.sendmail(smtp_user, RECIPIENT_EMAIL, msg.as_string())
+        server.sendmail(smtp_user, recipients, msg.as_string())
 
-    logger.info(f"Email sent to {RECIPIENT_EMAIL} with {len(jobs)} jobs.")
+    logger.info(f"Email sent to {recipients} with {len(jobs)} jobs.")
+    return True
 
 
 # ─────────────────────────────────────────────
@@ -146,5 +159,13 @@ async def _send_telegram_async(jobs: list[dict]):
     logger.info(f"Telegram message(s) sent: {len(chunks)} chunk(s).")
 
 
-def send_telegram(jobs: list[dict]):
+def send_telegram(jobs: list[dict]) -> bool:
+    bot_token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+
+    if not bot_token or not chat_id:
+        logger.warning("TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set — skipping Telegram.")
+        return False
+
     asyncio.run(_send_telegram_async(jobs))
+    return True

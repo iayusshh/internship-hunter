@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Role Filters — Internship Hunter{% endblock %}
+{% block topbar_title %}Role Filters{% endblock %}
+
+{% block content %}
+<div class="form-page-header">
+  <h1>Role Filters</h1>
+  <p>Control which jobs make it into your digest. Use chips for keyword lists and toggles for boolean settings.</p>
+</div>
+
+<form method="post">
+  <textarea id="hidden_tech_include"     name="tech_include"      hidden>{{ to_lines(config.filters.tech_include_keywords) }}</textarea>
+  <textarea id="hidden_tech_exclude"     name="tech_exclude"      hidden>{{ to_lines(config.filters.tech_exclude_keywords) }}</textarea>
+  <textarea id="hidden_seniority_exclude" name="seniority_exclude" hidden>{{ to_lines(config.filters.seniority_exclude_keywords) }}</textarea>
+
+  <div class="form-grid">
+
+    <!-- Tech Include -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Tech Include Keywords</h3>
+        <span class="badge badge-green">{{ config.filters.tech_include_keywords | length }} terms</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+          A job title must match <strong>at least one</strong> of these to be considered a tech role.
+        </p>
+        <div class="field">
+          <div class="tag-field" data-tag-field="tech_include"></div>
+          <div class="tag-hint">Press <kbd>Enter</kbd> to add a keyword</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tech Exclude -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Tech Exclude Keywords</h3>
+        <span class="badge badge-red">{{ config.filters.tech_exclude_keywords | length }} terms</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+          If a job title contains <strong>any</strong> of these, it's dropped regardless of include matches.
+        </p>
+        <div class="field">
+          <div class="tag-field" data-tag-field="tech_exclude"></div>
+          <div class="tag-hint">Press <kbd>Enter</kbd> to add a keyword</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Seniority Exclude -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Seniority Exclude</h3>
+        <span class="badge badge-amber">{{ config.filters.seniority_exclude_keywords | length }} terms</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+          Jobs with these words in the title are dropped — targets senior/lead roles.
+        </p>
+        <div class="field">
+          <div class="tag-field" data-tag-field="seniority_exclude"></div>
+          <div class="tag-hint">Press <kbd>Enter</kbd> to add a keyword</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toggles & Thresholds -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Filter Settings</h3>
+      </div>
+      <div class="card-body">
+
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <strong>Strict paid-only mode</strong>
+            <small>Drop Internshala/Unstop jobs with no stipend info. LinkedIn jobs are always kept.</small>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" name="strict_paid_only" {% if config.filters.strict_paid_only %}checked{% endif %}>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <strong>Exclude US-only roles</strong>
+            <small>Drop jobs that require US work authorization or residency.</small>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" name="exclude_us_only" {% if config.filters.exclude_us_only %}checked{% endif %}>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <strong>LinkedIn: require "intern" in title</strong>
+            <small>Only keep LinkedIn jobs with "intern", "internship", "trainee", etc. in title/URL.</small>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" name="linkedin_require_internship_hint" {% if config.filters.linkedin_require_internship_hint %}checked{% endif %}>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div class="setting-row" style="margin-top:6px;">
+          <div class="setting-info">
+            <strong>Minimum stipend (INR)</strong>
+            <small>Jobs with a lower INR stipend are dropped. Set to 0 to disable.</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="min_stipend_inr" class="stepper-input"
+                   value="{{ config.filters.min_stipend_inr }}" min="0" step="500" style="width:80px">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>LinkedIn minimum quality score</strong>
+            <small>+4 intern hint, +3 strong tech title, +1 location, +1 stipend, −5 dubious</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="linkedin_min_quality" class="stepper-input"
+                   value="{{ config.filters.linkedin_min_quality }}" min="0" max="10">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Cancel</a>
+    <div class="shortcut-hint"><kbd>⌘</kbd><kbd>S</kbd> to save</div>
+  </div>
+</form>
+{% endblock %}

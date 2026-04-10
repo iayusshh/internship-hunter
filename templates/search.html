@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Keywords & Locations — Internship Hunter{% endblock %}
+{% block topbar_title %}Search Keywords & Locations{% endblock %}
+
+{% block content %}
+<div class="form-page-header">
+  <h1>Keywords &amp; Locations</h1>
+  <p>These are the search terms sent to each job source. Type and press <kbd>Enter</kbd> to add, click remove to delete.</p>
+</div>
+
+<form method="post">
+  <!-- Hidden fields synced by JS -->
+  <textarea id="hidden_linkedin_keywords"    name="linkedin_keywords"    hidden>{{ to_lines(config.search.linkedin_keywords) }}</textarea>
+  <textarea id="hidden_linkedin_locations"   name="linkedin_locations"   hidden>{{ to_lines(config.search.linkedin_locations) }}</textarea>
+  <textarea id="hidden_internshala_terms"    name="internshala_terms"    hidden>{{ to_lines(config.search.internshala_terms) }}</textarea>
+  <textarea id="hidden_unstop_keywords"      name="unstop_keywords"      hidden>{{ to_lines(config.search.unstop_keywords) }}</textarea>
+
+  <div class="form-grid">
+
+    <!-- LinkedIn Keywords -->
+    <div class="card">
+      <div class="card-header">
+        <h3>LinkedIn Keywords</h3>
+        <span class="badge badge-indigo tag-count" id="count_linkedin_keywords">{{ config.search.linkedin_keywords | length }} items</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+          Search queries sent to LinkedIn's guest API. Be specific — "software engineer intern" is better than "software".
+        </p>
+        <div class="field">
+          <div class="field-label">
+            <label>Keywords</label>
+            <span class="tag-count" id="lk_count">{{ config.search.linkedin_keywords | length }} items</span>
+          </div>
+          <div class="tag-field" data-tag-field="linkedin_keywords"></div>
+          <div class="tag-hint">
+            <span>Press <kbd>Enter</kbd> to add · <kbd>Backspace</kbd> to remove last</span>
+          </div>
+        </div>
+        <div style="margin-top:10px;padding:10px;background:var(--page-bg);border-radius:7px;font-size:12px;color:var(--text-3);">
+          <strong>Note:</strong> {{ config.search.linkedin_keywords | length }} keywords × {{ config.search.linkedin_locations | length }} locations = {{ config.search.linkedin_keywords | length * config.search.linkedin_locations | length }} API requests per run.
+        </div>
+      </div>
+    </div>
+
+    <!-- LinkedIn Locations -->
+    <div class="card">
+      <div class="card-header">
+        <h3>LinkedIn Locations</h3>
+        <span class="badge badge-indigo">{{ config.search.linkedin_locations | length }} items</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+          Each location is paired with every keyword. More locations = more requests = slower scrape.
+        </p>
+        <div class="field">
+          <div class="field-label">
+            <label>Locations</label>
+            <span class="tag-count" id="ll_count">{{ config.search.linkedin_locations | length }} items</span>
+          </div>
+          <div class="tag-field" data-tag-field="linkedin_locations"></div>
+          <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Internshala Terms -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Internshala Terms</h3>
+        <span class="badge badge-indigo">{{ config.search.internshala_terms | length }} items</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+          URL slugs used in Internshala paths. Use hyphens: <code style="background:var(--page-bg);padding:1px 4px;border-radius:4px">software-engineer</code> becomes <code style="background:var(--page-bg);padding:1px 4px;border-radius:4px">/internships/software-engineer-internship</code>.
+        </p>
+        <div class="field">
+          <div class="field-label">
+            <label>Terms</label>
+            <span class="tag-count">{{ config.search.internshala_terms | length }} items</span>
+          </div>
+          <div class="tag-field" data-tag-field="internshala_terms"></div>
+          <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unstop Keywords -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Unstop Keywords</h3>
+        <span class="badge badge-indigo">{{ config.search.unstop_keywords | length }} items</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+          Free-text search terms sent to Unstop's JSON API. Spaces allowed.
+        </p>
+        <div class="field">
+          <div class="field-label">
+            <label>Keywords</label>
+            <span class="tag-count">{{ config.search.unstop_keywords | length }} items</span>
+          </div>
+          <div class="tag-field" data-tag-field="unstop_keywords"></div>
+          <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary" id="saveBtn">Save Changes</button>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Cancel</a>
+    <div class="shortcut-hint"><kbd>⌘</kbd><kbd>S</kbd> to save</div>
+  </div>
+</form>
+{% endblock %}

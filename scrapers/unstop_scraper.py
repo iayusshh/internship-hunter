@@ -1,7 +1,8 @@
 import requests
-from bs4 import BeautifulSoup
 import logging
 import time
+
+from config_manager import load_config
 
 logger = logging.getLogger(__name__)
 
@@ -12,15 +13,9 @@ HEADERS = {
     "Referer": "https://unstop.com/",
 }
 
-SEARCH_KEYWORDS = [
-    "software engineer",
-    "full stack",
-    "developer",
-    "frontend",
-    "backend",
-    "artificial intelligence",
-    "machine learning",
-]
+
+def _get_search_keywords() -> list[str]:
+    return load_config()["search"]["unstop_keywords"]
 
 
 def _extract_unstop_stipend(item: dict) -> str:
@@ -50,9 +45,8 @@ def scrape_unstop() -> list[dict]:
     results = []
     seen_ids = set()
 
-    for keyword in SEARCH_KEYWORDS:
+    for keyword in _get_search_keywords():
         try:
-            # Unstop public API endpoint for jobs/internships
             api_url = "https://unstop.com/api/public/opportunity/search-result"
             params = {
                 "opportunity": "jobs",

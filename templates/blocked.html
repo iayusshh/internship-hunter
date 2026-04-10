@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Block Lists — Internship Hunter{% endblock %}
+{% block topbar_title %}Block Lists{% endblock %}
+
+{% block content %}
+<div class="form-page-header">
+  <h1>Block Lists</h1>
+  <p>Jobs matching any entry below are silently dropped. All matching is case-insensitive substring matching.</p>
+</div>
+
+<form method="post">
+  <textarea id="hidden_blocked_companies"      name="blocked_companies"      hidden>{{ to_lines(config.filters.blocked_companies) }}</textarea>
+  <textarea id="hidden_dubious_title_keywords" name="dubious_title_keywords" hidden>{{ to_lines(config.filters.dubious_title_keywords) }}</textarea>
+  <textarea id="hidden_dubious_company_keywords" name="dubious_company_keywords" hidden>{{ to_lines(config.filters.dubious_company_keywords) }}</textarea>
+  <textarea id="hidden_paid_blocklist"         name="paid_blocklist"         hidden>{{ to_lines(config.filters.paid_blocklist) }}</textarea>
+
+  <div class="form-grid">
+
+    <!-- Blocked Companies -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Blocked Companies</h3>
+        <span class="badge badge-red">{{ config.filters.blocked_companies | length }} blocked</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+          Jobs from these companies are always dropped. Substring match — "unified mentor" catches "Unified Mentor Pvt Ltd".
+        </p>
+        <div class="field">
+          <div class="tag-field" data-tag-field="blocked_companies"></div>
+          <div class="tag-hint">Press <kbd>Enter</kbd> to add a company name</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dubious Patterns -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Dubious Patterns</h3>
+      </div>
+      <div class="card-body">
+
+        <div class="field">
+          <div class="field-label">
+            <label>Dubious Title Keywords</label>
+            <span class="badge badge-amber">{{ config.filters.dubious_title_keywords | length }}</span>
+          </div>
+          <p style="font-size:12px;color:var(--text-3);margin-bottom:8px;">
+            Job titles with these words are treated as training programs / bootcamps and dropped (or get −5 quality penalty on LinkedIn).
+          </p>
+          <div class="tag-field" data-tag-field="dubious_title_keywords"></div>
+          <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
+        </div>
+
+        <div class="field" style="margin-top:18px;padding-top:18px;border-top:1px solid var(--border);">
+          <div class="field-label">
+            <label>Dubious Company Keywords</label>
+            <span class="badge badge-amber">{{ config.filters.dubious_company_keywords | length }}</span>
+          </div>
+          <p style="font-size:12px;color:var(--text-3);margin-bottom:8px;">
+            Companies whose name contains these words are flagged as staffing agencies / recruiters.
+          </p>
+          <div class="tag-field" data-tag-field="dubious_company_keywords"></div>
+          <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Paid Blocklist -->
+    <div class="card full-col">
+      <div class="card-header">
+        <h3>Unpaid / Bad Stipend Indicators</h3>
+        <span class="badge badge-red">{{ config.filters.paid_blocklist | length }} patterns</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+          If a stipend field contains any of these strings, the job is treated as unpaid and dropped (when strict-paid-only is enabled).
+        </p>
+        <div class="field">
+          <div class="tag-field" data-tag-field="paid_blocklist" style="min-height:52px;"></div>
+          <div class="tag-hint">Press <kbd>Enter</kbd> to add an indicator phrase</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Cancel</a>
+    <div class="shortcut-hint"><kbd>⌘</kbd><kbd>S</kbd> to save</div>
+  </div>
+</form>
+{% endblock %}

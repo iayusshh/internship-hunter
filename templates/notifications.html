@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Notifications — Internship Hunter{% endblock %}
+{% block topbar_title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="form-page-header">
+  <h1>Notifications</h1>
+  <p>Configure where your daily digest is delivered. Credentials stay as environment variables and are never stored in config.json.</p>
+</div>
+
+<form method="post">
+  <textarea id="hidden_email_recipients" name="email_recipients" hidden>{{ to_lines(config.notifications.email_recipients) }}</textarea>
+
+  <div class="form-grid cols-1" style="max-width:660px;">
+
+    <!-- Email -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Email (Gmail)</h3>
+        <span class="badge {% if config.notifications.email_enabled %}badge-green{% else %}badge-red{% endif %}">
+          {% if config.notifications.email_enabled %}Enabled{% else %}Disabled{% endif %}
+        </span>
+      </div>
+      <div class="card-body">
+
+        <div class="toggle-row" style="padding-top:0;">
+          <div class="toggle-info">
+            <strong>Enable email delivery</strong>
+            <small>Send the HTML digest to the recipients listed below.</small>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" name="email_enabled" id="emailToggle"
+                   {% if config.notifications.email_enabled %}checked{% endif %}>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div style="margin-top:18px;" id="emailRecipientsSection">
+          <div class="field-label" style="margin-bottom:6px;">
+            <label style="font-size:13px;font-weight:600;">Recipients</label>
+            <span class="badge badge-indigo">{{ config.notifications.email_recipients | length }} address(es)</span>
+          </div>
+          <div class="tag-field" data-tag-field="email_recipients" style="min-height:52px;"></div>
+          <div class="tag-hint">Type an email and press <kbd>Enter</kbd> to add</div>
+        </div>
+
+        <div style="margin-top:16px;padding:12px 14px;background:var(--page-bg);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text-3);">
+          <strong style="color:var(--text-2);">Credentials (set as environment variables or GitHub Actions secrets):</strong>
+          <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;">
+            <div><code style="background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:1px 6px;">GMAIL_USER</code> — your Gmail address</div>
+            <div><code style="background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:1px 6px;">GMAIL_APP_PASSWORD</code> — Google App Password (not your login password)</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Telegram -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Telegram</h3>
+        <span class="badge {% if config.notifications.telegram_enabled %}badge-green{% else %}badge-red{% endif %}">
+          {% if config.notifications.telegram_enabled %}Enabled{% else %}Disabled{% endif %}
+        </span>
+      </div>
+      <div class="card-body">
+
+        <div class="toggle-row" style="padding-top:0;">
+          <div class="toggle-info">
+            <strong>Enable Telegram delivery</strong>
+            <small>Send the digest as Markdown messages to your Telegram bot.</small>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" name="telegram_enabled"
+                   {% if config.notifications.telegram_enabled %}checked{% endif %}>
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+
+        <div style="margin-top:16px;padding:12px 14px;background:var(--page-bg);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text-3);">
+          <strong style="color:var(--text-2);">Credentials (set as environment variables or GitHub Actions secrets):</strong>
+          <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;">
+            <div><code style="background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:1px 6px;">TELEGRAM_BOT_TOKEN</code> — from @BotFather</div>
+            <div><code style="background:var(--card-bg);border:1px solid var(--border);border-radius:4px;padding:1px 6px;">TELEGRAM_CHAT_ID</code> — your chat or channel ID</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Schedule info -->
+    <div class="card" style="background:var(--indigo-bg);border-color:var(--indigo-lt);">
+      <div class="card-body" style="padding:16px 20px;">
+        <h3 style="font-size:13px;font-weight:700;color:var(--indigo-dk);margin-bottom:8px;">Schedule</h3>
+        <p style="font-size:13px;color:var(--indigo-dk);margin:0;">
+          The pipeline runs automatically at <strong>9:00 AM IST (3:30 AM UTC)</strong> daily via GitHub Actions.
+          To change the schedule, edit the cron expression in
+          <code style="background:rgba(255,255,255,.6);padding:1px 5px;border-radius:4px;">.github/workflows/daily_hunt.yml</code>.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Cancel</a>
+    <div class="shortcut-hint"><kbd>⌘</kbd><kbd>S</kbd> to save</div>
+  </div>
+</form>
+{% endblock %}

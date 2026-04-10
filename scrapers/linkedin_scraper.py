@@ -6,6 +6,8 @@ from urllib.parse import urlencode
 import requests
 from bs4 import BeautifulSoup
 
+from config_manager import load_config
+
 logger = logging.getLogger(__name__)
 
 HEADERS = {
@@ -13,24 +15,15 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
 }
 
-KEYWORDS = [
-    "software engineer intern",
-    "software developer intern",
-    "sde intern",
-    "full stack developer intern",
-    "frontend developer intern",
-    "backend developer intern",
-    "devops intern",
-    "machine learning intern",
-    "ai engineer intern",
-    "data engineer intern",
-    "data science intern",
-    "quality assurance intern","software testing intern","test engineer intern","qa engineer intern","site reliability intern","sre intern","platform engineer intern","artificial intelligence intern","ml intern","android intern","ios intern","web developer intern","app developer intern","mobile developer intern"
-]
-
-LOCATIONS = ["India", "Remote", "United States", "Europe", "Asia", "England", "Germany", "Netherlands", "France", "Canada", "Australia", "New Zealand", "Singapore", "UAE", "Middle East", "Iran","Indonesia","Philippines","Vietnam","China","Japan","South Korea"]
-MAX_PAGES_PER_QUERY = int(os.environ.get("LINKEDIN_MAX_PAGES", "1"))
 RESULTS_PER_PAGE = 25
+
+
+def _get_search_config() -> tuple[list[str], list[str], int]:
+    cfg = load_config()
+    keywords = cfg["search"]["linkedin_keywords"]
+    locations = cfg["search"]["linkedin_locations"]
+    max_pages = int(os.environ.get("LINKEDIN_MAX_PAGES", str(cfg["sources"]["linkedin_max_pages"])))
+    return keywords, locations, max_pages
 
 
 def _build_guest_url(keyword: str, location: str, start: int) -> str:
@@ -75,12 +68,13 @@ def _parse_cards(html: str) -> list[dict]:
 
 
 def scrape_linkedin() -> list[dict]:
+    keywords, locations, max_pages = _get_search_config()
     results: list[dict] = []
     seen_urls: set[str] = set()
 
-    for keyword in KEYWORDS:
-        for location in LOCATIONS:
-            for page in range(MAX_PAGES_PER_QUERY):
+    for keyword in keywords:
+        for location in locations:
+            for page in range(max_pages):
                 start = page * RESULTS_PER_PAGE
                 url = _build_guest_url(keyword, location, start)
 
@@ -107,7 +101,6 @@ def scrape_linkedin() -> list[dict]:
                         new_count,
                     )
 
-                    # If a page has no cards, remaining pages are usually empty too.
                     if not parsed:
                         break
 

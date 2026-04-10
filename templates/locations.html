@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Location Rules — Internship Hunter{% endblock %}
+{% block topbar_title %}Location Rules{% endblock %}
+
+{% block content %}
+<div class="form-page-header">
+  <h1>Location Rules</h1>
+  <p>Controls how jobs are classified by geography and which regions are filtered out.</p>
+</div>
+
+<form method="post">
+  <textarea id="hidden_indian_hints"          name="indian_hints"          hidden>{{ to_lines(config.locations.indian_hints) }}</textarea>
+  <textarea id="hidden_us_only_hints"         name="us_only_hints"         hidden>{{ to_lines(config.filters.us_only_hints) }}</textarea>
+  <textarea id="hidden_global_friendly_hints" name="global_friendly_hints" hidden>{{ to_lines(config.filters.global_friendly_hints) }}</textarea>
+
+  <div class="form-grid">
+
+    <!-- Indian Location Hints -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Indian Location Hints</h3>
+        <span class="badge badge-indigo">{{ config.locations.indian_hints | length }} hints</span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+          If a job's location or company contains any of these (case-insensitive), it's classified as an
+          <strong>India listing</strong> and counted against the India cap — not the offshore cap.
+        </p>
+        <div class="field">
+          <div class="tag-field" data-tag-field="indian_hints"></div>
+          <div class="tag-hint">Press <kbd>Enter</kbd> to add a city or country name</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- US / Global hints -->
+    <div class="card">
+      <div class="card-header">
+        <h3>US-Only &amp; Global Hints</h3>
+      </div>
+      <div class="card-body">
+
+        <div class="field">
+          <div class="field-label">
+            <label>US-Only Hints</label>
+            <span class="badge badge-red">{{ config.filters.us_only_hints | length }}</span>
+          </div>
+          <p style="font-size:12px;color:var(--text-3);margin-bottom:8px;">
+            If a job's combined title + company + location + URL contains any of these, it's treated as
+            US-only and dropped (when the "Exclude US-only roles" toggle is on).
+          </p>
+          <div class="tag-field" data-tag-field="us_only_hints"></div>
+          <div class="tag-hint">Press <kbd>Enter</kbd> to add a hint phrase</div>
+        </div>
+
+        <div class="field" style="margin-top:20px;padding-top:18px;border-top:1px solid var(--border);">
+          <div class="field-label">
+            <label>Global-Friendly Hints</label>
+            <span class="badge badge-green">{{ config.filters.global_friendly_hints | length }}</span>
+          </div>
+          <p style="font-size:12px;color:var(--text-3);margin-bottom:8px;">
+            If a job also matches one of these, the US-only check is <strong>overridden</strong> and the job is kept.
+            Use for jobs explicitly listed as worldwide or remote-friendly.
+          </p>
+          <div class="tag-field" data-tag-field="global_friendly_hints" style="min-height:52px;"></div>
+          <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- How classification works -->
+    <div class="card full-col" style="background:var(--indigo-bg);border-color:var(--indigo-lt);">
+      <div class="card-body" style="padding:16px 20px;">
+        <h3 style="font-size:13px;font-weight:700;color:var(--indigo-dk);margin-bottom:10px;">How location classification works</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;font-size:12.5px;color:var(--indigo-dk);">
+          <div>
+            <strong>Step 1 — Indian check</strong><br>
+            Location or company contains an Indian hint → classified as India → counted against India cap.
+          </div>
+          <div>
+            <strong>Step 2 — Country inference</strong><br>
+            If not Indian, location string is matched against a country alias map (US, UK, Germany, etc.).
+          </div>
+          <div>
+            <strong>Step 3 — Offshore cap</strong><br>
+            Offshore jobs are capped globally and per-country to avoid any one country dominating results.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Cancel</a>
+    <div class="shortcut-hint"><kbd>⌘</kbd><kbd>S</kbd> to save</div>
+  </div>
+</form>
+{% endblock %}

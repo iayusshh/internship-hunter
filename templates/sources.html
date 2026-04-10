@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Source Caps — Internship Hunter{% endblock %}
+{% block topbar_title %}Source Caps & Settings{% endblock %}
+
+{% block content %}
+<div class="form-page-header">
+  <h1>Source Caps &amp; Settings</h1>
+  <p>Control how many results come from each source and how deduplication works.</p>
+</div>
+
+<form method="post">
+  <div class="form-grid cols-1" style="max-width:700px;">
+
+    <!-- LinkedIn Caps -->
+    <div class="card">
+      <div class="card-header">
+        <h3>LinkedIn Settings</h3>
+        <span class="badge badge-indigo">4 settings</span>
+      </div>
+      <div class="card-body">
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>Max pages per query</strong>
+            <small>Each extra page adds 25 results and ~1 second per keyword/location pair. Keep at 1 for speed.</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="linkedin_max_pages" class="stepper-input"
+                   value="{{ config.sources.linkedin_max_pages }}" min="1" max="5">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>India cap</strong>
+            <small>Max Indian LinkedIn jobs in the digest. Sorted by quality score, top N kept.</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="cap_linkedin_indian" class="stepper-input"
+                   value="{{ config.sources.cap_linkedin_indian }}" min="0" max="50">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>Offshore cap</strong>
+            <small>Max non-India LinkedIn jobs in the digest across all offshore countries.</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="cap_linkedin_offshore" class="stepper-input"
+                   value="{{ config.sources.cap_linkedin_offshore }}" min="0" max="50">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>Max per offshore country</strong>
+            <small>Prevents one country (e.g. US) from dominating the offshore slots.</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="max_per_offshore_country" class="stepper-input"
+                   value="{{ config.sources.max_per_offshore_country }}" min="1" max="20">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Other Sources -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Internshala &amp; Unstop</h3>
+      </div>
+      <div class="card-body">
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>Internshala cap</strong>
+            <small>Max Internshala jobs per digest.</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="cap_internshala" class="stepper-input"
+                   value="{{ config.sources.cap_internshala }}" min="0" max="30">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>Unstop cap</strong>
+            <small>Max Unstop jobs per digest.</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="cap_unstop" class="stepper-input"
+                   value="{{ config.sources.cap_unstop }}" min="0" max="30">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Dedup -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Deduplication</h3>
+      </div>
+      <div class="card-body">
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>Seen-jobs expiry (days)</strong>
+            <small>A job you've already seen will reappear after this many days. 60 recommended. 30 is too short.</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="expiry_days" class="stepper-input"
+                   value="{{ config.dedup.expiry_days }}" min="7" max="180">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;padding:12px;background:var(--indigo-bg);border-radius:8px;font-size:12.5px;color:var(--indigo-dk);">
+          <strong>How dedup works:</strong> Jobs are hashed by their normalized URL. Same job from two different sources (LinkedIn + Internshala) is caught via a secondary title+company hash. Both hashes are stored in <code>seen_jobs.json</code> and pruned after the expiry window.
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Cancel</a>
+    <div class="shortcut-hint"><kbd>⌘</kbd><kbd>S</kbd> to save</div>
+  </div>
+</form>
+{% endblock %}

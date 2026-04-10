@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Internship Hunter{% endblock %}
+{% block topbar_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+{# ── Setup checklist banner ────────────────────────────── #}
+{% set missing = [] %}
+{% if not setup.gmail_user %}{% set _ = missing.append("GMAIL_USER env var") %}{% endif %}
+{% if not setup.gmail_password %}{% set _ = missing.append("GMAIL_APP_PASSWORD env var") %}{% endif %}
+{% if not setup.telegram_token %}{% set _ = missing.append("TELEGRAM_BOT_TOKEN env var") %}{% endif %}
+{% if not setup.telegram_chat %}{% set _ = missing.append("TELEGRAM_CHAT_ID env var") %}{% endif %}
+{% if not setup.email_recipients %}{% set _ = missing.append("email recipient (Notifications page)") %}{% endif %}
+
+{% if missing %}
+<div class="setup-banner">
+  <div class="setup-banner-icon">⚠️</div>
+  <div class="setup-banner-body">
+    <strong>Setup incomplete — pipeline won't deliver notifications yet.</strong>
+    <ul class="setup-list">
+      {% for item in missing %}
+        <li>{{ item }} is not set</li>
+      {% endfor %}
+    </ul>
+    <span class="setup-hint">
+      Set credentials in your <code>.env</code> file (local) or GitHub Actions Secrets (CI) —
+      see <code>.env.example</code> for the full list.
+    </span>
+  </div>
+</div>
+{% endif %}
+
+{# ── Hero ──────────────────────────────────────────────── #}
+<div class="page-hero">
+  <div>
+    <h1>Internship Hunter</h1>
+    <p>Configure your daily job digest pipeline. Every change is saved to <code style="opacity:.8;font-size:12px">config.json</code>.</p>
+  </div>
+  <form method="post" action="{{ url_for('run_pipeline') }}" id="runForm"
+        onsubmit="return confirm('Trigger a full scrape + notify run now?')">
+    <button type="submit" class="run-btn" id="runBtn">▶ Run Pipeline Now</button>
+  </form>
+</div>
+
+{# ── Stat cards ────────────────────────────────────────── #}
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon">🔍</div>
+    <div class="stat-val" data-count="{{ stats.linkedin_keywords }}">0</div>
+    <div class="stat-label">LinkedIn Keywords</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">📍</div>
+    <div class="stat-val" data-count="{{ stats.linkedin_locations }}">0</div>
+    <div class="stat-label">LinkedIn Locations</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">✅</div>
+    <div class="stat-val" data-count="{{ stats.tech_include }}">0</div>
+    <div class="stat-label">Tech Include Keywords</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">❌</div>
+    <div class="stat-val" data-count="{{ stats.tech_exclude }}">0</div>
+    <div class="stat-label">Tech Exclude Keywords</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">🚫</div>
+    <div class="stat-val" data-count="{{ stats.blocked_companies }}">0</div>
+    <div class="stat-label">Blocked Companies</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">💰</div>
+    <div class="stat-val" data-count="{{ stats.min_stipend_inr }}" data-prefix="₹">₹0</div>
+    <div class="stat-label">Min Stipend (INR)</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">⭐</div>
+    <div class="stat-val" data-count="{{ stats.linkedin_min_quality }}">0</div>
+    <div class="stat-label">LinkedIn Quality ≥</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon">🗓️</div>
+    <div class="stat-val" data-count="{{ stats.expiry_days }}">0</div>
+    <div class="stat-label">Dedup Expiry (days)</div>
+  </div>
+</div>
+
+{# ── Bottom section ────────────────────────────────────── #}
+<div class="section-grid">
+
+  <div class="card">
+    <div class="card-header">
+      <h3>⚙️ Delivery Caps</h3>
+      <a href="{{ url_for('sources') }}" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">Edit</a>
+    </div>
+    <div class="card-body">
+      <table class="caps-table">
+        <tr><td>LinkedIn (India)</td><td><span class="badge badge-indigo">{{ stats.cap_linkedin_indian }}</span></td></tr>
+        <tr><td>LinkedIn (Offshore)</td><td><span class="badge badge-indigo">{{ stats.cap_linkedin_offshore }}</span></td></tr>
+        <tr><td>Internshala</td><td><span class="badge badge-indigo">{{ stats.cap_internshala }}</span></td></tr>
+        <tr><td>Unstop</td><td><span class="badge badge-indigo">{{ stats.cap_unstop }}</span></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:18px;">
+
+    <div class="card">
+      <div class="card-header">
+        <h3>⚗️ Filter Status</h3>
+        <a href="{{ url_for('filters') }}" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">Edit</a>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:9px;font-size:13px;">
+          {% set toggles = [
+            ("Strict paid-only", stats.strict_paid_only),
+            ("Exclude US-only roles", stats.exclude_us_only),
+            ("LinkedIn internship hint", stats.linkedin_require_hint),
+          ] %}
+          {% for label, val in toggles %}
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--text-2)">{{ label }}</span>
+            <span class="badge {% if val %}badge-green{% else %}badge-amber{% endif %}">
+              {{ "ON" if val else "OFF" }}
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>🔔 Notifications</h3>
+        <a href="{{ url_for('notifications') }}" class="btn btn-ghost" style="padding:5px 12px;font-size:12px">Edit</a>
+      </div>
+      <div class="card-body">
+        {% if stats.email_recipients %}
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;">
+            {% for r in stats.email_recipients %}
+              <div style="display:flex;align-items:center;gap:7px;color:var(--text-2)">
+                <span style="color:var(--green);font-size:15px">✉</span> {{ r }}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div style="font-size:13px;color:var(--text-3);display:flex;align-items:center;gap:6px;">
+            <span style="color:var(--amber)">⚠</span>
+            No recipients — <a href="{{ url_for('notifications') }}" style="color:var(--indigo)">add one</a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('runBtn')?.addEventListener('click', function() {
+  this.disabled = true;
+  this.textContent = 'Running…';
+});
+</script>
+{% endblock %}
