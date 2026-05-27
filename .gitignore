@@ -49,6 +49,6 @@ ruvector.db
 # seen_jobs.json is intentionally NOT ignored — it must be committed
 # so GitHub Actions can persist dedup state across runs
 
-# Auto-apply runtime (PII + DB — never commit these)
-applicant_profile.json
-applications.db
+seen_jobs.json
+config.json
+config.json
