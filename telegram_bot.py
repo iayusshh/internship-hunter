@@ -28,6 +28,7 @@ from autoapply.resume_tailor       import tailor_cover_letter
 from autoapply.linkedin_applier    import LinkedInApplier
 from autoapply.indeed_applier      import IndeedApplier
 from autoapply.internshala_applier import InternshalaApplier
+from autoapply.naukri_applier      import NaukriApplier
 from outreach.cold_email    import find_email, draft_cold_email, send_cold_email, infer_domain
 from outreach.referral_finder import find_referrals, linkedin_search_url
 from config_manager import load_config
@@ -45,6 +46,7 @@ _PLATFORM_MAP = {
     "LinkedIn":    LinkedInApplier,
     "Indeed":      IndeedApplier,
     "Internshala": InternshalaApplier,
+    "Naukri":      NaukriApplier,
 }
 
 

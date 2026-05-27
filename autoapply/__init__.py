@@ -15,6 +15,7 @@ from .cover_letter      import generate_cover_letter
 from .linkedin_applier  import LinkedInApplier
 from .indeed_applier    import IndeedApplier
 from .internshala_applier import InternshalaApplier
+from .naukri_applier    import NaukriApplier
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,7 @@ _PLATFORM_MAP = {
     "LinkedIn":    LinkedInApplier,
     "Indeed":      IndeedApplier,
     "Internshala": InternshalaApplier,
+    "Naukri":      NaukriApplier,
 }
 
 

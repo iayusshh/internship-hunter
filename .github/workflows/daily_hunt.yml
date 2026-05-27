@@ -40,6 +40,8 @@ jobs:
           INDEED_PASSWORD: ${{ secrets.INDEED_PASSWORD }}
           INTERNSHALA_EMAIL: ${{ secrets.INTERNSHALA_EMAIL }}
           INTERNSHALA_PASSWORD: ${{ secrets.INTERNSHALA_PASSWORD }}
+          NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
+          NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python main.py
 
