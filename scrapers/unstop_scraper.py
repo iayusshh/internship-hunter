@@ -26,7 +26,7 @@ def _extract_stipend(item: dict) -> str:
 
 
 def _extract_paid_flag(item: dict):
-    for key in ("is_paid", "paid", "is_stipend", "has_stipend"):
+    for key in ("isPaid", "is_paid", "paid", "is_stipend", "has_stipend"):
         val = item.get(key)
         if isinstance(val, bool):
             return val

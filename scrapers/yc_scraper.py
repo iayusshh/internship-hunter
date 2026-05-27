@@ -1,8 +1,10 @@
 """
 YC Jobs scraper — targets workatastartup.com (official YC job board).
-Parses the __NEXT_DATA__ JSON blob embedded in the page HTML.
+The site uses Inertia.js; job data lives in the `data-page` attribute of
+the first <div data-page=...> element, HTML-escaped JSON.
 """
 
+import html
 import json
 import logging
 import time
@@ -10,7 +12,6 @@ import time
 import requests
 from bs4 import BeautifulSoup
 
-from config_manager import load_config
 from scrapers.base import JobDict
 
 logger = logging.getLogger(__name__)
@@ -28,31 +29,10 @@ _SCRAPE_URLS = [
 
 
 def _classify_job_type(listing: dict) -> str:
-    raw = str(listing.get("type") or listing.get("job_type") or "").lower()
+    raw = str(listing.get("jobType") or "").lower()
     if "intern" in raw:
         return "internship"
     return "full_time_remote"
-
-
-def _parse_jobs_from_next_data(data: dict) -> list[dict]:
-    """Extract raw job listings from Next.js __NEXT_DATA__ blob."""
-    try:
-        page_props = data.get("props", {}).get("pageProps", {})
-        # Listings may be under companies[].jobs[] or jobs[] depending on page type
-        jobs_flat = page_props.get("jobs", [])
-        if jobs_flat:
-            return jobs_flat
-
-        companies = page_props.get("companies", [])
-        result = []
-        for company in companies:
-            for job in company.get("jobs", []):
-                job.setdefault("_company_name", company.get("name", ""))
-                job.setdefault("_company_slug", company.get("slug", ""))
-                result.append(job)
-        return result
-    except Exception:
-        return []
 
 
 def scrape_yc() -> list[JobDict]:
@@ -63,49 +43,37 @@ def scrape_yc() -> list[JobDict]:
         try:
             resp = requests.get(page_url, headers=HEADERS, timeout=20)
             resp.raise_for_status()
-            soup = BeautifulSoup(resp.text, "lxml")
 
-            next_data_tag = soup.find("script", id="__NEXT_DATA__")
-            if not next_data_tag or not next_data_tag.string:
-                logger.warning(f"YC: __NEXT_DATA__ not found on {page_url}")
+            soup = BeautifulSoup(resp.text, "lxml")
+            page_div = soup.find("div", attrs={"data-page": True})
+            if not page_div:
+                logger.warning(f"YC: data-page element not found on {page_url}")
                 continue
 
-            data = json.loads(next_data_tag.string)
-            raw_jobs = _parse_jobs_from_next_data(data)
+            data = json.loads(html.unescape(page_div["data-page"]))
+            raw_jobs = data.get("props", {}).get("jobs", [])
 
             for item in raw_jobs:
                 try:
-                    job_id = str(item.get("id") or item.get("slug") or "")
+                    job_id = str(item.get("id") or "")
                     if job_id and job_id in seen_ids:
                         continue
                     if job_id:
                         seen_ids.add(job_id)
 
-                    title   = str(item.get("title") or item.get("name") or "").strip()
-                    company = str(
-                        item.get("company", {}).get("name")
-                        or item.get("_company_name")
-                        or item.get("company_name")
-                        or ""
-                    ).strip()
-                    location = str(item.get("location") or item.get("remote_ok") or "Remote").strip()
-                    if isinstance(location, bool) or location.lower() in ("true", "false", "1", "0"):
-                        location = "Remote"
-
-                    slug = item.get("_company_slug") or item.get("company", {}).get("slug") or ""
-                    job_slug = item.get("slug") or job_id
-                    if slug and job_slug:
-                        url = f"https://www.workatastartup.com/companies/{slug}/jobs/{job_slug}"
-                    elif job_id:
-                        url = f"https://www.workatastartup.com/jobs/{job_id}"
-                    else:
-                        url = "https://www.workatastartup.com/jobs"
-
+                    title   = str(item.get("title") or "").strip()
+                    company = str(item.get("companyName") or "").strip()
                     if not title or not company:
                         continue
 
-                    job_type = _classify_job_type(item)
-                    compensation = str(item.get("compensation") or item.get("salary") or "").strip()
+                    location    = str(item.get("location") or "Remote").strip()
+                    salary_raw  = str(item.get("salary") or "").strip()
+                    job_type    = _classify_job_type(item)
+                    company_slug = str(item.get("companySlug") or "")
+                    url = (
+                        f"https://www.workatastartup.com/jobs/{job_id}"
+                        if job_id else "https://www.workatastartup.com/jobs"
+                    )
 
                     job = JobDict(
                         title=title,
@@ -117,11 +85,11 @@ def scrape_yc() -> list[JobDict]:
                         date_posted="Recent",
                         is_remote=True,
                     )
-                    if compensation:
+                    if salary_raw:
                         if job_type == "internship":
-                            job["stipend"] = compensation
+                            job["stipend"] = salary_raw
                         else:
-                            job["salary"] = compensation
+                            job["salary"] = salary_raw
 
                     results.append(job)
 

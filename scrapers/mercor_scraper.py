@@ -1,101 +1,98 @@
 """
 Mercor jobs scraper.
-Hits the public JSON REST API at work.mercor.com/api/jobs/.
-All results are full_time_remote.
+Hits the public REST API at aws.api.mercor.com — no auth required, just
+the Origin/Referer headers. Returns all remote listings; tech-relevance
+filtering is handled downstream by filter_relevant_jobs().
 """
 
 import logging
+import re
 import time
 
 import requests
 
-from config_manager import load_config
 from scrapers.base import JobDict
 
 logger = logging.getLogger(__name__)
 
-_BASE_URL = "https://work.mercor.com/api/jobs/"
+_API_URL = "https://aws.api.mercor.com/work/listings-explore-page"
 
-HEADERS = {
+_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "application/json",
-    "Referer": "https://work.mercor.com/jobs/",
+    "Origin": "https://work.mercor.com",
+    "Referer": "https://work.mercor.com/explore",
 }
 
 
+def _fmt_salary(min_r, max_r, freq: str) -> str:
+    if not min_r and not max_r:
+        return ""
+    unit = {"hourly": "/hr", "monthly": "/mo", "yearly": "/yr", "annual": "/yr"}.get(
+        (freq or "").lower(), f"/{freq}" if freq else ""
+    )
+    if min_r and max_r and min_r != max_r:
+        return f"${min_r:.0f}–${max_r:.0f} {unit}".strip()
+    val = min_r or max_r
+    return f"${val:.0f} {unit}".strip()
+
+
 def scrape_mercor() -> list[JobDict]:
-    keywords = load_config()["search"].get("mercor_keywords", [])
+    try:
+        resp = requests.get(_API_URL, headers=_HEADERS, timeout=20)
+        resp.raise_for_status()
+        listings = resp.json().get("listings", [])
+    except Exception as e:
+        logger.error(f"Mercor: API request failed: {e}")
+        return []
+
     results: list[JobDict] = []
     seen_ids: set[str] = set()
 
-    for keyword in keywords:
+    for item in listings:
         try:
-            resp = requests.get(
-                _BASE_URL,
-                headers=HEADERS,
-                params={
-                    "search": keyword,
-                    "employment_type": "full_time",
-                    "page": 1,
-                },
-                timeout=15,
-            )
-
-            if resp.status_code == 404:
-                logger.warning(f"Mercor: API endpoint returned 404 — skipping '{keyword}'")
+            if item.get("status") != "active":
                 continue
 
-            resp.raise_for_status()
-            data = resp.json()
+            listing_id = str(item.get("listingId") or "")
+            if not listing_id or listing_id in seen_ids:
+                continue
+            seen_ids.add(listing_id)
 
-            # Handle both paginated {"results": [...]} and plain list responses
-            items = data if isinstance(data, list) else data.get("results", data.get("jobs", []))
+            title = str(item.get("title") or "").strip()
+            company = str(
+                item.get("companyName") or item.get("companyAlias") or "Mercor Client"
+            ).strip()
+            if not title:
+                continue
 
-            for item in items:
-                try:
-                    job_id = str(item.get("id") or "")
-                    if job_id and job_id in seen_ids:
-                        continue
-                    if job_id:
-                        seen_ids.add(job_id)
+            location = str(item.get("location") or "Remote").strip() or "Remote"
+            if item.get("workArrangement", "").lower() == "remote":
+                location = location if location != "Remote" else "Remote"
 
-                    title   = str(item.get("title") or item.get("job_title") or "").strip()
-                    company = str(item.get("company_name") or item.get("company") or "").strip()
-                    if not title or not company:
-                        continue
+            salary_raw = _fmt_salary(
+                item.get("rateMin"), item.get("rateMax"), item.get("payRateFrequency", "")
+            )
+            url = f"https://work.mercor.com/listing/{listing_id}"
+            date_posted = str(item.get("postedAt") or item.get("createdAt") or "Recent")
 
-                    location = str(item.get("location") or "Remote").strip()
-                    apply_link = str(item.get("apply_link") or item.get("url") or "").strip()
-                    if not apply_link and job_id:
-                        apply_link = f"https://work.mercor.com/jobs/{job_id}"
+            job = JobDict(
+                title=title,
+                company=company,
+                location=location,
+                url=url,
+                source="Mercor",
+                job_type="full_time_remote",
+                date_posted=date_posted,
+                is_remote=True,
+            )
+            if salary_raw:
+                job["salary"] = salary_raw
 
-                    salary_raw = str(item.get("salary") or item.get("compensation") or "").strip()
-                    date_posted = str(item.get("created_at") or item.get("posted_at") or "Recent")
+            results.append(job)
 
-                    job = JobDict(
-                        title=title,
-                        company=company,
-                        location=location,
-                        url=apply_link,
-                        source="Mercor",
-                        job_type="full_time_remote",
-                        date_posted=date_posted,
-                        is_remote=True,
-                    )
-                    if salary_raw:
-                        job["salary"] = salary_raw
-
-                    results.append(job)
-
-                except Exception as e:
-                    logger.debug(f"Mercor item parse error: {e}")
-
-            time.sleep(1.0)
-
-        except requests.HTTPError as e:
-            logger.error(f"Mercor HTTP error for '{keyword}': {e}")
         except Exception as e:
-            logger.error(f"Mercor error for '{keyword}': {e}")
+            logger.debug(f"Mercor item parse error: {e}")
 
-    logger.info(f"Mercor: {len(results)} results")
+    logger.info(f"Mercor: {len(results)} listings fetched")
     return results

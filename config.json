@@ -66,6 +66,30 @@
       "machine learning",
       "full stack developer"
     ],
+    "naukri_keywords": [
+      "software engineer intern",
+      "sde intern",
+      "developer intern",
+      "full stack intern",
+      "machine learning intern"
+    ],
+    "hn_hiring_keywords": [
+      "python",
+      "javascript",
+      "typescript",
+      "react",
+      "node",
+      "backend",
+      "frontend",
+      "full stack",
+      "ml",
+      "machine learning",
+      "intern",
+      "remote",
+      "software engineer",
+      "developer"
+    ],
+    "hn_results_cap": 20,
     "turing_urls": [
       "https://www.turing.com/jobs/remote-software-engineer-jobs",
       "https://www.turing.com/jobs/remote-full-stack-jobs",
@@ -218,6 +242,8 @@
     "cap_glassdoor_fulltime": 8,
     "cap_internshala": 5,
     "cap_unstop": 5,
+    "cap_naukri": 8,
+    "cap_hn": 8,
     "cap_yc": 10,
     "cap_wellfound": 10,
     "cap_turing": 8,
@@ -243,11 +269,28 @@
     ]
   },
   "notifications": {
-    "email_recipients": [],
+    "email_recipients": ["ayush.doingwork@gmail.com"],
     "telegram_enabled": true,
     "email_enabled": true
   },
   "dedup": {
     "expiry_days": 60
+  },
+  "autoapply": {
+    "enabled": false,
+    "max_per_day": 20,
+    "platforms": [
+      "linkedin",
+      "indeed",
+      "internshala"
+    ],
+    "cover_letter_enabled": true,
+    "use_resume_tailor": true,
+    "headless": true
+  },
+  "outreach": {
+    "cold_email_enabled": true,
+    "referral_finder_enabled": true,
+    "referral_playwright": false
   }
 }

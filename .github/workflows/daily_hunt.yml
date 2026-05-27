@@ -26,7 +26,7 @@ jobs:
         run: pip install --no-cache-dir -r requirements.txt
 
       - name: Install Playwright browsers
-        run: playwright install chromium --with-deps
+        run: playwright install chromium chrome --with-deps
 
       - name: Run Internship Hunter
         env:
