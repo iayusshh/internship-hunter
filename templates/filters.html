@@ -9,11 +9,135 @@
 </div>
 
 <form method="post">
-  <textarea id="hidden_tech_include"     name="tech_include"      hidden>{{ to_lines(config.filters.tech_include_keywords) }}</textarea>
-  <textarea id="hidden_tech_exclude"     name="tech_exclude"      hidden>{{ to_lines(config.filters.tech_exclude_keywords) }}</textarea>
+  <textarea id="hidden_tech_include"      name="tech_include"      hidden>{{ to_lines(config.filters.tech_include_keywords) }}</textarea>
+  <textarea id="hidden_tech_exclude"      name="tech_exclude"      hidden>{{ to_lines(config.filters.tech_exclude_keywords) }}</textarea>
   <textarea id="hidden_seniority_exclude" name="seniority_exclude" hidden>{{ to_lines(config.filters.seniority_exclude_keywords) }}</textarea>
 
   <div class="form-grid">
+
+    <!-- Job Type Settings -->
+    <div class="card" style="grid-column:1/-1;">
+      <div class="card-header">
+        <h3>Job Type Settings</h3>
+      </div>
+      <div class="card-body" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+        <div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <strong>Enable internships</strong>
+              <small>Scrape and deliver internship listings (Internshala, Unstop, LinkedIn intern, etc.).</small>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" name="enable_internships" {% if config.filters.enable_internships %}checked{% endif %}>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="setting-row" style="margin-top:10px;">
+            <div class="setting-info">
+              <strong>Minimum stipend (INR)</strong>
+              <small>Internshala/Unstop jobs with a lower INR stipend are dropped. Set 0 to disable.</small>
+            </div>
+            <div class="stepper">
+              <button type="button" class="stepper-btn stepper-dec">−</button>
+              <input type="number" name="min_stipend_inr" class="stepper-input"
+                     value="{{ config.filters.min_stipend_inr }}" min="0" step="500" style="width:80px">
+              <button type="button" class="stepper-btn stepper-inc">+</button>
+            </div>
+          </div>
+          <div class="toggle-row" style="margin-top:10px;">
+            <div class="toggle-info">
+              <strong>Strict paid-only mode</strong>
+              <small>Drop internships with no stipend info. LinkedIn/Indeed/Glassdoor are always kept.</small>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" name="strict_paid_only" {% if config.filters.strict_paid_only %}checked{% endif %}>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="toggle-row" style="margin-top:10px;">
+            <div class="toggle-info">
+              <strong>jobspy: require "intern" in title</strong>
+              <small>Only keep LinkedIn/Indeed/Glassdoor jobs with "intern", "trainee", etc. in title/URL.</small>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" name="linkedin_require_internship_hint" {% if config.filters.linkedin_require_internship_hint %}checked{% endif %}>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="setting-row" style="margin-top:10px;">
+            <div class="setting-info">
+              <strong>jobspy internship quality ≥</strong>
+              <small>+4 intern hint, +3 strong tech title, +1 location, +1 stipend, −5 dubious</small>
+            </div>
+            <div class="stepper">
+              <button type="button" class="stepper-btn stepper-dec">−</button>
+              <input type="number" name="linkedin_min_quality" class="stepper-input"
+                     value="{{ config.filters.linkedin_min_quality }}" min="0" max="10">
+              <button type="button" class="stepper-btn stepper-inc">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="toggle-row">
+            <div class="toggle-info">
+              <strong>Enable remote full-time</strong>
+              <small>Scrape and deliver remote full-time jobs (Turing, Mercor, Wellfound, LinkedIn full-time).</small>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" name="enable_full_time_remote" {% if config.filters.enable_full_time_remote %}checked{% endif %}>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="setting-row" style="margin-top:10px;">
+            <div class="setting-info">
+              <strong>Minimum salary (USD/yr)</strong>
+              <small>Full-time jobs with a disclosed salary below this are dropped. Set 0 to disable.</small>
+            </div>
+            <div class="stepper">
+              <button type="button" class="stepper-btn stepper-dec">−</button>
+              <input type="number" name="min_salary_usd_annual" class="stepper-input"
+                     value="{{ config.filters.get('min_salary_usd_annual', 40000) }}" min="0" step="5000" style="width:90px">
+              <button type="button" class="stepper-btn stepper-inc">+</button>
+            </div>
+          </div>
+          <div class="toggle-row" style="margin-top:10px;">
+            <div class="toggle-info">
+              <strong>Require remote hint</strong>
+              <small>Full-time jobs must have <code>is_remote=True</code> or "remote" in location.</small>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" name="full_time_require_remote_hint" {% if config.filters.get('full_time_require_remote_hint', True) %}checked{% endif %}>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+          <div class="setting-row" style="margin-top:10px;">
+            <div class="setting-info">
+              <strong>Full-time min quality ≥</strong>
+              <small>+3 is_remote, +3 strong tech title, +2 salary present, −5 dubious</small>
+            </div>
+            <div class="stepper">
+              <button type="button" class="stepper-btn stepper-dec">−</button>
+              <input type="number" name="full_time_min_quality" class="stepper-input"
+                     value="{{ config.filters.get('full_time_min_quality', 4) }}" min="0" max="10">
+              <button type="button" class="stepper-btn stepper-inc">+</button>
+            </div>
+          </div>
+          <div class="toggle-row" style="margin-top:10px;">
+            <div class="toggle-info">
+              <strong>Exclude US-only roles</strong>
+              <small>Drop internships that require US work authorization or residency.</small>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" name="exclude_us_only" {% if config.filters.exclude_us_only %}checked{% endif %}>
+              <span class="toggle-track"></span>
+            </label>
+          </div>
+        </div>
+
+      </div>
+    </div>
 
     <!-- Tech Include -->
     <div class="card">
@@ -63,75 +187,6 @@
           <div class="tag-field" data-tag-field="seniority_exclude"></div>
           <div class="tag-hint">Press <kbd>Enter</kbd> to add a keyword</div>
         </div>
-      </div>
-    </div>
-
-    <!-- Toggles & Thresholds -->
-    <div class="card">
-      <div class="card-header">
-        <h3>Filter Settings</h3>
-      </div>
-      <div class="card-body">
-
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <strong>Strict paid-only mode</strong>
-            <small>Drop Internshala/Unstop jobs with no stipend info. LinkedIn jobs are always kept.</small>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" name="strict_paid_only" {% if config.filters.strict_paid_only %}checked{% endif %}>
-            <span class="toggle-track"></span>
-          </label>
-        </div>
-
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <strong>Exclude US-only roles</strong>
-            <small>Drop jobs that require US work authorization or residency.</small>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" name="exclude_us_only" {% if config.filters.exclude_us_only %}checked{% endif %}>
-            <span class="toggle-track"></span>
-          </label>
-        </div>
-
-        <div class="toggle-row">
-          <div class="toggle-info">
-            <strong>LinkedIn: require "intern" in title</strong>
-            <small>Only keep LinkedIn jobs with "intern", "internship", "trainee", etc. in title/URL.</small>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" name="linkedin_require_internship_hint" {% if config.filters.linkedin_require_internship_hint %}checked{% endif %}>
-            <span class="toggle-track"></span>
-          </label>
-        </div>
-
-        <div class="setting-row" style="margin-top:6px;">
-          <div class="setting-info">
-            <strong>Minimum stipend (INR)</strong>
-            <small>Jobs with a lower INR stipend are dropped. Set to 0 to disable.</small>
-          </div>
-          <div class="stepper">
-            <button type="button" class="stepper-btn stepper-dec">−</button>
-            <input type="number" name="min_stipend_inr" class="stepper-input"
-                   value="{{ config.filters.min_stipend_inr }}" min="0" step="500" style="width:80px">
-            <button type="button" class="stepper-btn stepper-inc">+</button>
-          </div>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-info">
-            <strong>LinkedIn minimum quality score</strong>
-            <small>+4 intern hint, +3 strong tech title, +1 location, +1 stipend, −5 dubious</small>
-          </div>
-          <div class="stepper">
-            <button type="button" class="stepper-btn stepper-dec">−</button>
-            <input type="number" name="linkedin_min_quality" class="stepper-input"
-                   value="{{ config.filters.linkedin_min_quality }}" min="0" max="10">
-            <button type="button" class="stepper-btn stepper-inc">+</button>
-          </div>
-        </div>
-
       </div>
     </div>
 

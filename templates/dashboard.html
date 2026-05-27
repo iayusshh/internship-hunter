@@ -33,8 +33,8 @@
 {# ── Hero ──────────────────────────────────────────────── #}
 <div class="page-hero">
   <div>
-    <h1>Internship Hunter</h1>
-    <p>Configure your daily job digest pipeline. Every change is saved to <code style="opacity:.8;font-size:12px">config.json</code>.</p>
+    <h1>Internship Hunter v2</h1>
+    <p>9 sources · Internships + Remote Full-Time · Configurable filters · Daily digest</p>
   </div>
   <form method="post" action="{{ url_for('run_pipeline') }}" id="runForm"
         onsubmit="return confirm('Trigger a full scrape + notify run now?')">
@@ -46,13 +46,13 @@
 <div class="stats-grid">
   <div class="stat-card">
     <div class="stat-icon">🔍</div>
-    <div class="stat-val" data-count="{{ stats.linkedin_keywords }}">0</div>
-    <div class="stat-label">LinkedIn Keywords</div>
+    <div class="stat-val" data-count="{{ stats.jobspy_intern_keywords }}">0</div>
+    <div class="stat-label">Internship Keywords</div>
   </div>
   <div class="stat-card">
-    <div class="stat-icon">📍</div>
-    <div class="stat-val" data-count="{{ stats.linkedin_locations }}">0</div>
-    <div class="stat-label">LinkedIn Locations</div>
+    <div class="stat-icon">💼</div>
+    <div class="stat-val" data-count="{{ stats.jobspy_fulltime_keywords }}">0</div>
+    <div class="stat-label">Full-Time Keywords</div>
   </div>
   <div class="stat-card">
     <div class="stat-icon">✅</div>
@@ -77,7 +77,7 @@
   <div class="stat-card">
     <div class="stat-icon">⭐</div>
     <div class="stat-val" data-count="{{ stats.linkedin_min_quality }}">0</div>
-    <div class="stat-label">LinkedIn Quality ≥</div>
+    <div class="stat-label">Intern Quality ≥</div>
   </div>
   <div class="stat-card">
     <div class="stat-icon">🗓️</div>
@@ -96,10 +96,22 @@
     </div>
     <div class="card-body">
       <table class="caps-table">
+        <tr><td colspan="2" style="font-size:11px;color:var(--text-3);padding-top:4px;font-weight:700;">INTERNSHIPS</td></tr>
         <tr><td>LinkedIn (India)</td><td><span class="badge badge-indigo">{{ stats.cap_linkedin_indian }}</span></td></tr>
         <tr><td>LinkedIn (Offshore)</td><td><span class="badge badge-indigo">{{ stats.cap_linkedin_offshore }}</span></td></tr>
+        <tr><td>Indeed</td><td><span class="badge badge-indigo">{{ stats.cap_indeed_internship }}</span></td></tr>
+        <tr><td>Glassdoor</td><td><span class="badge badge-indigo">{{ stats.cap_glassdoor_internship }}</span></td></tr>
         <tr><td>Internshala</td><td><span class="badge badge-indigo">{{ stats.cap_internshala }}</span></td></tr>
         <tr><td>Unstop</td><td><span class="badge badge-indigo">{{ stats.cap_unstop }}</span></td></tr>
+        <tr><td>YC Jobs</td><td><span class="badge badge-amber">{{ stats.cap_yc }}</span></td></tr>
+        <tr><td>Wellfound</td><td><span class="badge badge-amber">{{ stats.cap_wellfound }}</span></td></tr>
+        <tr><td colspan="2" style="font-size:11px;color:var(--text-3);padding-top:12px;font-weight:700;">REMOTE FULL-TIME</td></tr>
+        <tr><td>LinkedIn</td><td><span class="badge badge-teal">{{ stats.cap_linkedin_fulltime }}</span></td></tr>
+        <tr><td>Indeed</td><td><span class="badge badge-teal">{{ stats.cap_indeed_fulltime }}</span></td></tr>
+        <tr><td>Glassdoor</td><td><span class="badge badge-teal">{{ stats.cap_glassdoor_fulltime }}</span></td></tr>
+        <tr><td>Turing</td><td><span class="badge badge-teal">{{ stats.cap_turing }}</span></td></tr>
+        <tr><td>Mercor</td><td><span class="badge badge-teal">{{ stats.cap_mercor }}</span></td></tr>
+        <tr><td>Wellfound</td><td><span class="badge badge-teal">{{ stats.cap_wellfound }}</span></td></tr>
       </table>
     </div>
   </div>
@@ -114,9 +126,10 @@
       <div class="card-body">
         <div style="display:flex;flex-direction:column;gap:9px;font-size:13px;">
           {% set toggles = [
-            ("Strict paid-only", stats.strict_paid_only),
-            ("Exclude US-only roles", stats.exclude_us_only),
-            ("LinkedIn internship hint", stats.linkedin_require_hint),
+            ("Internships enabled",    stats.enable_internships),
+            ("Remote full-time enabled", stats.enable_full_time_remote),
+            ("Strict paid-only",       stats.strict_paid_only),
+            ("Exclude US-only roles",  stats.exclude_us_only),
           ] %}
           {% for label, val in toggles %}
           <div style="display:flex;justify-content:space-between;align-items:center;">

@@ -1,56 +1,37 @@
 {
   "search": {
-    "linkedin_keywords": [
+    "jobspy_internship_keywords": [
       "software engineer intern",
-      "software developer intern",
       "sde intern",
-      "full stack developer intern",
-      "frontend developer intern",
-      "backend developer intern",
-      "devops intern",
+      "ml intern",
       "machine learning intern",
-      "ai engineer intern",
+      "devops intern",
+      "backend intern",
+      "frontend intern",
       "data engineer intern",
       "data science intern",
-      "quality assurance intern",
-      "software testing intern",
-      "test engineer intern",
-      "qa engineer intern",
-      "site reliability intern",
-      "sre intern",
-      "platform engineer intern",
-      "artificial intelligence intern",
-      "ml intern",
+      "ai intern",
+      "full stack intern",
+      "web developer intern",
       "android intern",
       "ios intern",
-      "web developer intern",
-      "app developer intern",
-      "mobile developer intern"
+      "qa engineer intern",
+      "site reliability intern"
     ],
-    "linkedin_locations": [
-      "India",
-      "Remote",
-      "United States",
-      "Europe",
-      "Asia",
-      "England",
-      "Germany",
-      "Netherlands",
-      "France",
-      "Canada",
-      "Australia",
-      "New Zealand",
-      "Singapore",
-      "UAE",
-      "Middle East",
-      "Iran",
-      "Indonesia",
-      "Philippines",
-      "Vietnam",
-      "China",
-      "Japan",
-      "South Korea"
+    "jobspy_fulltime_keywords": [
+      "software engineer remote",
+      "backend engineer remote",
+      "frontend engineer remote",
+      "ml engineer remote",
+      "machine learning engineer remote",
+      "devops engineer remote",
+      "full stack engineer remote",
+      "data engineer remote",
+      "sre remote"
     ],
+    "jobspy_country_indeed": "worldwide",
+    "jobspy_hours_old": 26,
+    "jobspy_results_per_call": 15,
     "internshala_terms": [
       "software-engineer",
       "full-stack-developer",
@@ -68,9 +49,36 @@
       "backend",
       "artificial intelligence",
       "machine learning"
+    ],
+    "yc_roles": [
+      "software_engineer",
+      "machine_learning"
+    ],
+    "wellfound_roles": [
+      "software-engineer",
+      "backend-engineer",
+      "machine-learning-engineer",
+      "full-stack-engineer"
+    ],
+    "mercor_keywords": [
+      "software engineer",
+      "backend engineer",
+      "machine learning",
+      "full stack developer"
+    ],
+    "turing_urls": [
+      "https://www.turing.com/jobs/remote-software-engineer-jobs",
+      "https://www.turing.com/jobs/remote-full-stack-jobs",
+      "https://www.turing.com/jobs/remote-frontend-developer-jobs",
+      "https://www.turing.com/remote-developer-jobs"
     ]
   },
   "filters": {
+    "enable_internships": true,
+    "enable_full_time_remote": true,
+    "min_salary_usd_annual": 40000,
+    "full_time_require_remote_hint": true,
+    "full_time_min_quality": 4,
     "tech_include_keywords": [
       "software engineer",
       "software developer",
@@ -200,12 +208,20 @@
     "linkedin_min_quality": 6
   },
   "sources": {
-    "linkedin_max_pages": 1,
     "cap_linkedin_indian": 10,
     "cap_linkedin_offshore": 10,
     "max_per_offshore_country": 3,
+    "cap_indeed_internship": 8,
+    "cap_glassdoor_internship": 8,
+    "cap_linkedin_fulltime": 8,
+    "cap_indeed_fulltime": 8,
+    "cap_glassdoor_fulltime": 8,
     "cap_internshala": 5,
-    "cap_unstop": 5
+    "cap_unstop": 5,
+    "cap_yc": 10,
+    "cap_wellfound": 10,
+    "cap_turing": 8,
+    "cap_mercor": 8
   },
   "locations": {
     "indian_hints": [

@@ -9,33 +9,20 @@
 </div>
 
 <form method="post">
-  <div class="form-grid cols-1" style="max-width:700px;">
+  <div class="form-grid cols-1" style="max-width:760px;">
 
-    <!-- LinkedIn Caps -->
+    <!-- jobspy Internship Caps -->
     <div class="card">
       <div class="card-header">
-        <h3>LinkedIn Settings</h3>
-        <span class="badge badge-indigo">4 settings</span>
+        <h3>jobspy — Internship Caps</h3>
+        <span class="badge badge-indigo">LinkedIn · Indeed · Glassdoor</span>
       </div>
       <div class="card-body">
 
         <div class="setting-row">
           <div class="setting-info">
-            <strong>Max pages per query</strong>
-            <small>Each extra page adds 25 results and ~1 second per keyword/location pair. Keep at 1 for speed.</small>
-          </div>
-          <div class="stepper">
-            <button type="button" class="stepper-btn stepper-dec">−</button>
-            <input type="number" name="linkedin_max_pages" class="stepper-input"
-                   value="{{ config.sources.linkedin_max_pages }}" min="1" max="5">
-            <button type="button" class="stepper-btn stepper-inc">+</button>
-          </div>
-        </div>
-
-        <div class="setting-row">
-          <div class="setting-info">
-            <strong>India cap</strong>
-            <small>Max Indian LinkedIn jobs in the digest. Sorted by quality score, top N kept.</small>
+            <strong>LinkedIn India cap</strong>
+            <small>Max Indian LinkedIn internship jobs. Sorted by quality score, top N kept.</small>
           </div>
           <div class="stepper">
             <button type="button" class="stepper-btn stepper-dec">−</button>
@@ -47,8 +34,8 @@
 
         <div class="setting-row">
           <div class="setting-info">
-            <strong>Offshore cap</strong>
-            <small>Max non-India LinkedIn jobs in the digest across all offshore countries.</small>
+            <strong>LinkedIn offshore cap</strong>
+            <small>Max non-India LinkedIn internship jobs across all offshore countries.</small>
           </div>
           <div class="stepper">
             <button type="button" class="stepper-btn stepper-dec">−</button>
@@ -61,7 +48,7 @@
         <div class="setting-row">
           <div class="setting-info">
             <strong>Max per offshore country</strong>
-            <small>Prevents one country (e.g. US) from dominating the offshore slots.</small>
+            <small>Prevents one country from dominating offshore slots.</small>
           </div>
           <div class="stepper">
             <button type="button" class="stepper-btn stepper-dec">−</button>
@@ -71,13 +58,70 @@
           </div>
         </div>
 
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>Indeed internship cap</strong>
+            <small>Max Indeed internship jobs per digest.</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="cap_indeed_internship" class="stepper-input"
+                   value="{{ config.sources.cap_indeed_internship }}" min="0" max="50">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>Glassdoor internship cap</strong>
+            <small>Max Glassdoor internship jobs per digest.</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="cap_glassdoor_internship" class="stepper-input"
+                   value="{{ config.sources.cap_glassdoor_internship }}" min="0" max="50">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+
       </div>
     </div>
 
-    <!-- Other Sources -->
+    <!-- jobspy Full-Time Caps -->
     <div class="card">
       <div class="card-header">
-        <h3>Internshala &amp; Unstop</h3>
+        <h3>jobspy — Remote Full-Time Caps</h3>
+        <span class="badge badge-teal">LinkedIn · Indeed · Glassdoor</span>
+      </div>
+      <div class="card-body">
+
+        {% set fulltime_caps = [
+          ("LinkedIn full-time cap", "cap_linkedin_fulltime", config.sources.cap_linkedin_fulltime, "Max LinkedIn remote full-time jobs per digest."),
+          ("Indeed full-time cap", "cap_indeed_fulltime", config.sources.cap_indeed_fulltime, "Max Indeed remote full-time jobs per digest."),
+          ("Glassdoor full-time cap", "cap_glassdoor_fulltime", config.sources.cap_glassdoor_fulltime, "Max Glassdoor remote full-time jobs per digest."),
+        ] %}
+        {% for label, field, val, hint in fulltime_caps %}
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>{{ label }}</strong>
+            <small>{{ hint }}</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="{{ field }}" class="stepper-input" value="{{ val }}" min="0" max="50">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+        {% endfor %}
+
+      </div>
+    </div>
+
+    <!-- India Sources -->
+    <div class="card">
+      <div class="card-header">
+        <h3>India-Specific Sources</h3>
+        <span class="badge badge-indigo">Internshala · Unstop</span>
       </div>
       <div class="card-body">
 
@@ -110,6 +154,64 @@
       </div>
     </div>
 
+    <!-- India Sources Naukri -->
+    <div class="card">
+      <div class="card-header">
+        <h3>India + Community Sources</h3>
+        <span class="badge badge-indigo">Naukri · HN Jobs</span>
+      </div>
+      <div class="card-body">
+        {% set india_comm_caps = [
+          ("Naukri cap",  "cap_naukri", config.sources.get("cap_naukri", 8),  "Max Naukri fresher/intern jobs per digest."),
+          ("HN Jobs cap", "cap_hn",     config.sources.get("cap_hn", 8),      "Max HackerNews 'Who is Hiring?' jobs per digest."),
+        ] %}
+        {% for label, field, val, hint in india_comm_caps %}
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>{{ label }}</strong>
+            <small>{{ hint }}</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="{{ field }}" class="stepper-input" value="{{ val }}" min="0" max="50">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- New Sources -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Global Sources</h3>
+        <span class="badge badge-amber">YC · Wellfound · Turing · Mercor</span>
+      </div>
+      <div class="card-body">
+
+        {% set new_caps = [
+          ("YC Jobs cap", "cap_yc", config.sources.cap_yc, "Max YC / Work at a Startup jobs per digest."),
+          ("Wellfound cap", "cap_wellfound", config.sources.cap_wellfound, "Max Wellfound jobs per digest."),
+          ("Turing cap", "cap_turing", config.sources.cap_turing, "Max Turing remote jobs per digest."),
+          ("Mercor cap", "cap_mercor", config.sources.cap_mercor, "Max Mercor remote jobs per digest."),
+        ] %}
+        {% for label, field, val, hint in new_caps %}
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>{{ label }}</strong>
+            <small>{{ hint }}</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="{{ field }}" class="stepper-input" value="{{ val }}" min="0" max="50">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+        {% endfor %}
+
+      </div>
+    </div>
+
     <!-- Dedup -->
     <div class="card">
       <div class="card-header">
@@ -120,7 +222,7 @@
         <div class="setting-row">
           <div class="setting-info">
             <strong>Seen-jobs expiry (days)</strong>
-            <small>A job you've already seen will reappear after this many days. 60 recommended. 30 is too short.</small>
+            <small>A job you've already seen will reappear after this many days. 60 recommended.</small>
           </div>
           <div class="stepper">
             <button type="button" class="stepper-btn stepper-dec">−</button>
@@ -131,7 +233,7 @@
         </div>
 
         <div style="margin-top:14px;padding:12px;background:var(--indigo-bg);border-radius:8px;font-size:12.5px;color:var(--indigo-dk);">
-          <strong>How dedup works:</strong> Jobs are hashed by their normalized URL. Same job from two different sources (LinkedIn + Internshala) is caught via a secondary title+company hash. Both hashes are stored in <code>seen_jobs.json</code> and pruned after the expiry window.
+          <strong>How dedup works:</strong> Jobs are hashed by their normalized URL. Same job from two different sources is caught via a secondary title+company hash. Both hashes are stored in <code>seen_jobs.json</code> and pruned after the expiry window.
         </div>
 
       </div>

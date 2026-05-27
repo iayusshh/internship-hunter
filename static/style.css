@@ -1160,6 +1160,12 @@ input[type='number']::-webkit-inner-spin-button {
   border-color: #e7cea8;
 }
 
+.badge-teal {
+  background: #f0fdfb;
+  color: #0f5346;
+  border-color: #99e6d8;
+}
+
 /* ==================================================
    SETTINGS ROW
 ================================================== */

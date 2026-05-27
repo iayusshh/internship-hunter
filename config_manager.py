@@ -12,57 +12,41 @@ CONFIG_FILE = os.path.join(_BASE_DIR, "config.json")
 
 DEFAULT_CONFIG: dict = {
     "search": {
-        "linkedin_keywords": [
+        # jobspy covers LinkedIn, Indeed, Glassdoor
+        "jobspy_internship_keywords": [
             "software engineer intern",
-            "software developer intern",
             "sde intern",
-            "full stack developer intern",
-            "frontend developer intern",
-            "backend developer intern",
-            "devops intern",
+            "ml intern",
             "machine learning intern",
-            "ai engineer intern",
+            "devops intern",
+            "backend intern",
+            "frontend intern",
             "data engineer intern",
             "data science intern",
-            "quality assurance intern",
-            "software testing intern",
-            "test engineer intern",
-            "qa engineer intern",
-            "site reliability intern",
-            "sre intern",
-            "platform engineer intern",
-            "artificial intelligence intern",
-            "ml intern",
+            "ai intern",
+            "full stack intern",
+            "web developer intern",
             "android intern",
             "ios intern",
-            "web developer intern",
-            "app developer intern",
-            "mobile developer intern",
+            "qa engineer intern",
+            "site reliability intern",
         ],
-        "linkedin_locations": [
-            "India",
-            "Remote",
-            "United States",
-            "Europe",
-            "Asia",
-            "England",
-            "Germany",
-            "Netherlands",
-            "France",
-            "Canada",
-            "Australia",
-            "New Zealand",
-            "Singapore",
-            "UAE",
-            "Middle East",
-            "Iran",
-            "Indonesia",
-            "Philippines",
-            "Vietnam",
-            "China",
-            "Japan",
-            "South Korea",
+        "jobspy_fulltime_keywords": [
+            "software engineer remote",
+            "backend engineer remote",
+            "frontend engineer remote",
+            "ml engineer remote",
+            "machine learning engineer remote",
+            "devops engineer remote",
+            "full stack engineer remote",
+            "data engineer remote",
+            "sre remote",
         ],
+        "jobspy_country_indeed": "worldwide",
+        "jobspy_hours_old": 26,
+        "jobspy_results_per_call": 15,
+
+        # Internshala: URL slugs
         "internshala_terms": [
             "software-engineer",
             "full-stack-developer",
@@ -72,6 +56,8 @@ DEFAULT_CONFIG: dict = {
             "artificial-intelligence",
             "machine-learning",
         ],
+
+        # Unstop: free-text search
         "unstop_keywords": [
             "software engineer",
             "full stack",
@@ -81,8 +67,66 @@ DEFAULT_CONFIG: dict = {
             "artificial intelligence",
             "machine learning",
         ],
+
+        # YC / Work at a Startup: role slugs
+        "yc_roles": [
+            "software_engineer",
+            "machine_learning",
+        ],
+
+        # Wellfound: role slugs in URL
+        "wellfound_roles": [
+            "software-engineer",
+            "backend-engineer",
+            "machine-learning-engineer",
+            "full-stack-engineer",
+        ],
+
+        # Mercor: free-text search
+        "mercor_keywords": [
+            "software engineer",
+            "backend engineer",
+            "machine learning",
+            "full stack developer",
+        ],
+
+        # Naukri: search keywords (Indian fresher/internship roles)
+        "naukri_keywords": [
+            "software engineer intern",
+            "sde intern",
+            "developer intern",
+            "full stack intern",
+            "machine learning intern",
+        ],
+
+        # HackerNews "Who is Hiring?" — filter keywords
+        "hn_hiring_keywords": [
+            "python", "javascript", "typescript", "react", "node",
+            "backend", "frontend", "full stack", "ml", "machine learning",
+            "intern", "remote", "software engineer", "developer",
+        ],
+        "hn_results_cap": 20,
+
+        # Turing: full category page URLs (only verified-live pages)
+        "turing_urls": [
+            "https://www.turing.com/jobs/remote-software-engineer-jobs",
+            "https://www.turing.com/jobs/remote-full-stack-jobs",
+            "https://www.turing.com/jobs/remote-frontend-developer-jobs",
+            "https://www.turing.com/remote-developer-jobs",
+        ],
     },
+
     "filters": {
+        # Job type toggles
+        "enable_internships":          True,
+        "enable_full_time_remote":     True,
+
+        # Full-time remote filters
+        "min_salary_usd_annual":       40000,
+        "full_time_require_remote_hint": True,
+        "full_time_min_quality":       4,
+
+        # Tech role keywords (shared across job types)
         "tech_include_keywords": [
             "software engineer",
             "software developer",
@@ -205,20 +249,43 @@ DEFAULT_CONFIG: dict = {
             "anywhere",
             "international",
         ],
-        "strict_paid_only": True,
-        "min_stipend_inr": 5000,
-        "exclude_us_only": True,
+
+        # Internship-specific
+        "strict_paid_only":                True,
+        "min_stipend_inr":                 5000,
+        "exclude_us_only":                 True,
         "linkedin_require_internship_hint": True,
-        "linkedin_min_quality": 6,
+        "linkedin_min_quality":            6,
     },
+
     "sources": {
-        "linkedin_max_pages": 1,
-        "cap_linkedin_indian": 10,
-        "cap_linkedin_offshore": 10,
+        # jobspy (LinkedIn / Indeed / Glassdoor) — internships
+        "cap_linkedin_indian":     10,
+        "cap_linkedin_offshore":   10,
         "max_per_offshore_country": 3,
-        "cap_internshala": 5,
-        "cap_unstop": 5,
+        "cap_indeed_internship":   8,
+        "cap_glassdoor_internship": 8,
+
+        # jobspy — full-time remote
+        "cap_linkedin_fulltime":   8,
+        "cap_indeed_fulltime":     8,
+        "cap_glassdoor_fulltime":  8,
+
+        # India-specific internship sources
+        "cap_internshala":         5,
+        "cap_unstop":              5,
+        "cap_naukri":              8,
+
+        # Community sources
+        "cap_hn":                  8,
+
+        # New sources
+        "cap_yc":                  10,
+        "cap_wellfound":           10,
+        "cap_turing":              8,
+        "cap_mercor":              8,
     },
+
     "locations": {
         "indian_hints": [
             "india",
@@ -238,13 +305,30 @@ DEFAULT_CONFIG: dict = {
             "jaipur",
         ],
     },
+
     "notifications": {
-        "email_recipients": [],   # add your email(s) via the web UI or directly here
+        "email_recipients": [],
         "telegram_enabled": True,
-        "email_enabled": True,
+        "email_enabled":    True,
     },
+
     "dedup": {
         "expiry_days": 60,
+    },
+
+    "autoapply": {
+        "enabled":              False,
+        "max_per_day":          20,
+        "platforms":            ["linkedin", "indeed", "internshala"],
+        "cover_letter_enabled": True,
+        "use_resume_tailor":    True,
+        "headless":             True,
+    },
+
+    "outreach": {
+        "cold_email_enabled":       True,
+        "referral_finder_enabled":  True,
+        "referral_playwright":      False,
     },
 }
 
@@ -252,23 +336,32 @@ DEFAULT_CONFIG: dict = {
 def load_config() -> dict:
     """Load config from config.json, falling back to DEFAULT_CONFIG if missing."""
     if os.path.exists(CONFIG_FILE):
+        stored = _deep_copy(DEFAULT_CONFIG)
         with open(CONFIG_FILE, "r") as f:
-            return json.load(f)
+            on_disk = json.load(f)
+        _deep_merge(stored, on_disk)
+        return stored
     return _deep_copy(DEFAULT_CONFIG)
 
 
 def save_config(config: dict) -> None:
-    """Save config to config.json."""
     with open(CONFIG_FILE, "w") as f:
         json.dump(config, f, indent=2)
 
 
 def generate_default_config() -> None:
-    """Write config.json with default values if it doesn't already exist."""
     if not os.path.exists(CONFIG_FILE):
         save_config(_deep_copy(DEFAULT_CONFIG))
 
 
 def _deep_copy(obj):
-    """Simple deep copy via JSON round-trip."""
     return json.loads(json.dumps(obj))
+
+
+def _deep_merge(base: dict, override: dict) -> None:
+    """Recursively merge override into base (in place)."""
+    for key, val in override.items():
+        if key in base and isinstance(base[key], dict) and isinstance(val, dict):
+            _deep_merge(base[key], val)
+        else:
+            base[key] = val

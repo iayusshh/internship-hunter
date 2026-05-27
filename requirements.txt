@@ -4,3 +4,7 @@ lxml==5.2.1
 python-telegram-bot==20.7
 flask>=3.0
 python-dotenv==1.0.1
+python-jobspy>=1.1.4
+pandas>=2.0
+playwright>=1.44
+anthropic>=0.28

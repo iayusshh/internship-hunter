@@ -36,3 +36,19 @@ logs/
 
 # Flask session
 flask_session/
+
+# Ruflo / Claude Flow runtime (generated, not source)
+.claude/
+.claude-flow/
+.swarm/
+.mcp.json
+agentdb.rvf
+ruvector.db
+*.db
+
+# seen_jobs.json is intentionally NOT ignored — it must be committed
+# so GitHub Actions can persist dedup state across runs
+
+# Auto-apply runtime (PII + DB — never commit these)
+applicant_profile.json
+applications.db

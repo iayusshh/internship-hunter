@@ -5,111 +5,176 @@
 {% block content %}
 <div class="form-page-header">
   <h1>Keywords &amp; Locations</h1>
-  <p>These are the search terms sent to each job source. Type and press <kbd>Enter</kbd> to add, click remove to delete.</p>
+  <p>These are the search terms sent to each job source. Type and press <kbd>Enter</kbd> to add, click ✕ to remove.</p>
 </div>
 
 <form method="post">
   <!-- Hidden fields synced by JS -->
-  <textarea id="hidden_linkedin_keywords"    name="linkedin_keywords"    hidden>{{ to_lines(config.search.linkedin_keywords) }}</textarea>
-  <textarea id="hidden_linkedin_locations"   name="linkedin_locations"   hidden>{{ to_lines(config.search.linkedin_locations) }}</textarea>
-  <textarea id="hidden_internshala_terms"    name="internshala_terms"    hidden>{{ to_lines(config.search.internshala_terms) }}</textarea>
-  <textarea id="hidden_unstop_keywords"      name="unstop_keywords"      hidden>{{ to_lines(config.search.unstop_keywords) }}</textarea>
+  <textarea id="hidden_jobspy_internship_keywords" name="jobspy_internship_keywords" hidden>{{ to_lines(config.search.jobspy_internship_keywords) }}</textarea>
+  <textarea id="hidden_jobspy_fulltime_keywords"   name="jobspy_fulltime_keywords"   hidden>{{ to_lines(config.search.jobspy_fulltime_keywords) }}</textarea>
+  <textarea id="hidden_internshala_terms"          name="internshala_terms"          hidden>{{ to_lines(config.search.internshala_terms) }}</textarea>
+  <textarea id="hidden_unstop_keywords"            name="unstop_keywords"            hidden>{{ to_lines(config.search.unstop_keywords) }}</textarea>
+  <textarea id="hidden_yc_roles"                   name="yc_roles"                   hidden>{{ to_lines(config.search.yc_roles) }}</textarea>
+  <textarea id="hidden_wellfound_roles"            name="wellfound_roles"            hidden>{{ to_lines(config.search.wellfound_roles) }}</textarea>
+  <textarea id="hidden_mercor_keywords"            name="mercor_keywords"            hidden>{{ to_lines(config.search.mercor_keywords) }}</textarea>
 
-  <div class="form-grid">
-
-    <!-- LinkedIn Keywords -->
-    <div class="card">
-      <div class="card-header">
-        <h3>LinkedIn Keywords</h3>
-        <span class="badge badge-indigo tag-count" id="count_linkedin_keywords">{{ config.search.linkedin_keywords | length }} items</span>
-      </div>
-      <div class="card-body">
-        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
-          Search queries sent to LinkedIn's guest API. Be specific — "software engineer intern" is better than "software".
-        </p>
-        <div class="field">
-          <div class="field-label">
-            <label>Keywords</label>
-            <span class="tag-count" id="lk_count">{{ config.search.linkedin_keywords | length }} items</span>
-          </div>
-          <div class="tag-field" data-tag-field="linkedin_keywords"></div>
-          <div class="tag-hint">
-            <span>Press <kbd>Enter</kbd> to add · <kbd>Backspace</kbd> to remove last</span>
-          </div>
-        </div>
-        <div style="margin-top:10px;padding:10px;background:var(--page-bg);border-radius:7px;font-size:12px;color:var(--text-3);">
-          <strong>Note:</strong> {{ config.search.linkedin_keywords | length }} keywords × {{ config.search.linkedin_locations | length }} locations = {{ config.search.linkedin_keywords | length * config.search.linkedin_locations | length }} API requests per run.
-        </div>
-      </div>
+  <div style="margin-bottom:20px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:12px;">
+      jobspy Sources — LinkedIn · Indeed · Glassdoor
     </div>
+    <div class="form-grid">
 
-    <!-- LinkedIn Locations -->
-    <div class="card">
-      <div class="card-header">
-        <h3>LinkedIn Locations</h3>
-        <span class="badge badge-indigo">{{ config.search.linkedin_locations | length }} items</span>
-      </div>
-      <div class="card-body">
-        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
-          Each location is paired with every keyword. More locations = more requests = slower scrape.
-        </p>
-        <div class="field">
-          <div class="field-label">
-            <label>Locations</label>
-            <span class="tag-count" id="ll_count">{{ config.search.linkedin_locations | length }} items</span>
+      <div class="card">
+        <div class="card-header">
+          <h3>Internship Keywords</h3>
+          <span class="badge badge-indigo">{{ config.search.jobspy_internship_keywords | length }} items</span>
+        </div>
+        <div class="card-body">
+          <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+            Used for <code>job_type="internship"</code> searches across LinkedIn, Indeed, and Glassdoor.
+          </p>
+          <div class="field">
+            <div class="tag-field" data-tag-field="jobspy_internship_keywords"></div>
+            <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
           </div>
-          <div class="tag-field" data-tag-field="linkedin_locations"></div>
-          <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
         </div>
       </div>
-    </div>
 
-    <!-- Internshala Terms -->
-    <div class="card">
-      <div class="card-header">
-        <h3>Internshala Terms</h3>
-        <span class="badge badge-indigo">{{ config.search.internshala_terms | length }} items</span>
-      </div>
-      <div class="card-body">
-        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
-          URL slugs used in Internshala paths. Use hyphens: <code style="background:var(--page-bg);padding:1px 4px;border-radius:4px">software-engineer</code> becomes <code style="background:var(--page-bg);padding:1px 4px;border-radius:4px">/internships/software-engineer-internship</code>.
-        </p>
-        <div class="field">
-          <div class="field-label">
-            <label>Terms</label>
-            <span class="tag-count">{{ config.search.internshala_terms | length }} items</span>
+      <div class="card">
+        <div class="card-header">
+          <h3>Remote Full-Time Keywords</h3>
+          <span class="badge badge-teal">{{ config.search.jobspy_fulltime_keywords | length }} items</span>
+        </div>
+        <div class="card-body">
+          <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+            Used for <code>job_type="fulltime" is_remote=True</code> searches across LinkedIn, Indeed, and Glassdoor.
+          </p>
+          <div class="field">
+            <div class="tag-field" data-tag-field="jobspy_fulltime_keywords"></div>
+            <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
           </div>
-          <div class="tag-field" data-tag-field="internshala_terms"></div>
-          <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
         </div>
       </div>
-    </div>
 
-    <!-- Unstop Keywords -->
-    <div class="card">
-      <div class="card-header">
-        <h3>Unstop Keywords</h3>
-        <span class="badge badge-indigo">{{ config.search.unstop_keywords | length }} items</span>
-      </div>
-      <div class="card-body">
-        <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
-          Free-text search terms sent to Unstop's JSON API. Spaces allowed.
-        </p>
-        <div class="field">
-          <div class="field-label">
-            <label>Keywords</label>
-            <span class="tag-count">{{ config.search.unstop_keywords | length }} items</span>
+    </div>
+  </div>
+
+  <div style="margin-bottom:20px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:12px;">
+      India-Specific Sources — Internshala · Unstop
+    </div>
+    <div class="form-grid">
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Internshala Terms</h3>
+          <span class="badge badge-indigo">{{ config.search.internshala_terms | length }} items</span>
+        </div>
+        <div class="card-body">
+          <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+            URL slugs: <code>software-engineer</code> → <code>/internships/software-engineer-internship</code>.
+          </p>
+          <div class="field">
+            <div class="tag-field" data-tag-field="internshala_terms"></div>
+            <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
           </div>
-          <div class="tag-field" data-tag-field="unstop_keywords"></div>
-          <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
         </div>
       </div>
-    </div>
 
+      <div class="card">
+        <div class="card-header">
+          <h3>Unstop Keywords</h3>
+          <span class="badge badge-indigo">{{ config.search.unstop_keywords | length }} items</span>
+        </div>
+        <div class="card-body">
+          <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+            Free-text search terms for Unstop's JSON API. Spaces allowed.
+          </p>
+          <div class="field">
+            <div class="tag-field" data-tag-field="unstop_keywords"></div>
+            <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="margin-bottom:20px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:12px;">
+      Global Sources — YC Jobs · Wellfound · Mercor · Turing
+    </div>
+    <div class="form-grid">
+
+      <div class="card">
+        <div class="card-header">
+          <h3>YC Jobs Roles</h3>
+          <span class="badge badge-amber">{{ config.search.yc_roles | length }} items</span>
+        </div>
+        <div class="card-body">
+          <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+            Role slugs for workatastartup.com. Examples: <code>software_engineer</code>, <code>machine_learning</code>.
+          </p>
+          <div class="field">
+            <div class="tag-field" data-tag-field="yc_roles"></div>
+            <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Wellfound Roles</h3>
+          <span class="badge badge-amber">{{ config.search.wellfound_roles | length }} items</span>
+        </div>
+        <div class="card-body">
+          <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+            Role slugs in Wellfound URLs: <code>software-engineer</code> → <code>/role/r/software-engineer</code>.
+          </p>
+          <div class="field">
+            <div class="tag-field" data-tag-field="wellfound_roles"></div>
+            <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Mercor Keywords</h3>
+          <span class="badge badge-amber">{{ config.search.mercor_keywords | length }} items</span>
+        </div>
+        <div class="card-body">
+          <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+            Free-text search terms for Mercor's job API.
+          </p>
+          <div class="field">
+            <div class="tag-field" data-tag-field="mercor_keywords"></div>
+            <div class="tag-hint">Press <kbd>Enter</kbd> to add</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Turing Category URLs</h3>
+          <span class="badge badge-amber">{{ config.search.turing_urls | length }} items</span>
+        </div>
+        <div class="card-body">
+          <p style="font-size:12.5px;color:var(--text-3);margin-bottom:12px;">
+            Full page URLs for Turing remote job categories. One per line.
+          </p>
+          <div class="field">
+            <textarea name="turing_urls" rows="6"
+              style="width:100%;font-size:12px;font-family:monospace;padding:8px;border:1px solid var(--border);border-radius:6px;resize:vertical;">{{ to_lines(config.search.turing_urls) }}</textarea>
+          </div>
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <div class="form-actions">
-    <button type="submit" class="btn btn-primary" id="saveBtn">Save Changes</button>
+    <button type="submit" class="btn btn-primary">Save Changes</button>
     <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Cancel</a>
     <div class="shortcut-hint"><kbd>⌘</kbd><kbd>S</kbd> to save</div>
   </div>

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Internship Hunter — Daily digest pipeline
-Scrapes LinkedIn, Internshala, and Unstop for fresh internships,
-deduplicates, and sends results via Email + Telegram.
+Internship Hunter v2 — Daily digest pipeline
+Scrapes 9 sources for internships and remote full-time jobs,
+deduplicates, and delivers via Email + Telegram.
 """
 
 import logging
@@ -11,16 +11,23 @@ import os
 
 try:
     from dotenv import load_dotenv
-    load_dotenv()  # loads .env when running locally; no-op in CI
+    load_dotenv()
 except ImportError:
     pass
 
-from scrapers.linkedin_scraper import scrape_linkedin
+from scrapers.jobspy_scraper    import scrape_jobspy_internships, scrape_jobspy_fulltime_remote
 from scrapers.internshala_scraper import scrape_internshala
-from scrapers.unstop_scraper import scrape_unstop
+from scrapers.unstop_scraper    import scrape_unstop
+from scrapers.yc_scraper        import scrape_yc
+from scrapers.wellfound_scraper import scrape_wellfound
+from scrapers.turing_scraper    import scrape_turing
+from scrapers.mercor_scraper    import scrape_mercor
+from scrapers.naukri_scraper    import scrape_naukri
+from scrapers.hn_scraper        import scrape_hn
+
 from deduplicator import filter_new_jobs
-from job_filters import filter_relevant_jobs, quality_score
-from notifier import send_email, send_telegram
+from job_filters  import filter_relevant_jobs, quality_score
+from notifier     import send_email, send_telegram
 from config_manager import load_config
 
 logging.basicConfig(
@@ -30,107 +37,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger("main")
 
-def _get_source_caps():
-    cfg = load_config()["sources"]
-    return {
-        "linkedin_indian": int(os.environ.get("SOURCE_CAP_LINKEDIN_INDIAN", str(cfg["cap_linkedin_indian"]))),
-        "linkedin_offshore": int(os.environ.get("SOURCE_CAP_LINKEDIN_OFFSHORE", str(cfg["cap_linkedin_offshore"]))),
-        "max_per_offshore_country": int(os.environ.get("LINKEDIN_MAX_PER_OFFSHORE_COUNTRY", str(cfg["max_per_offshore_country"]))),
-        "internshala": int(os.environ.get("SOURCE_CAP_INTERNSHALA", str(cfg["cap_internshala"]))),
-        "unstop": int(os.environ.get("SOURCE_CAP_UNSTOP", str(cfg["cap_unstop"]))),
-    }
-
-
-def _get_indian_hints() -> list[str]:
-    return load_config()["locations"]["indian_hints"]
-
-
-def _is_indian_listing(job: dict) -> bool:
-    location = str(job.get("location", "")).lower()
-    company = str(job.get("company", "")).lower()
-    haystack = f"{location} {company}"
-    return any(token in haystack for token in _get_indian_hints())
-
-
-def _infer_country(job: dict) -> str:
-    location = str(job.get("location", "")).lower().strip()
-    if _is_indian_listing(job):
-        return "India"
-
-    country_aliases = {
-        "united states": "United States",
-        "usa": "United States",
-        "u.s.": "United States",
-        "canada": "Canada",
-        "australia": "Australia",
-        "new zealand": "New Zealand",
-        "england": "United Kingdom",
-        "united kingdom": "United Kingdom",
-        "uk": "United Kingdom",
-        "germany": "Germany",
-        "netherlands": "Netherlands",
-        "france": "France",
-        "singapore": "Singapore",
-        "uae": "UAE",
-        "united arab emirates": "UAE",
-        "indonesia": "Indonesia",
-        "philippines": "Philippines",
-        "vietnam": "Vietnam",
-        "china": "China",
-        "japan": "Japan",
-        "south korea": "South Korea",
-        "iran": "Iran",
-        "europe": "Europe",
-        "asia": "Asia",
-        "middle east": "Middle East",
-        "remote": "Remote",
-        "worldwide": "Worldwide",
-    }
-
-    for alias, country in country_aliases.items():
-        if alias in location:
-            return country
-
-    # Fallback: use trailing location segment if available (e.g., "Berlin, Germany").
-    if "," in location:
-        tail = location.split(",")[-1].strip()
-        if tail:
-            return tail.title()
-
-    return "Other"
-
-
-def _prioritize_sources(jobs: list[dict]) -> list[dict]:
-    caps = _get_source_caps()
-    linkedin = [j for j in jobs if j.get("source") == "LinkedIn"]
-    internshala = [j for j in jobs if j.get("source") == "Internshala"]
-    unstop = [j for j in jobs if j.get("source") == "Unstop"]
-    other = [j for j in jobs if j.get("source") not in {"LinkedIn", "Internshala", "Unstop"}]
-
-    linkedin = sorted(linkedin, key=quality_score, reverse=True)
-    linkedin_indian = [j for j in linkedin if _is_indian_listing(j)]
-    linkedin_offshore = [j for j in linkedin if not _is_indian_listing(j)]
-
-    selected = []
-    selected.extend(linkedin_indian[:caps["linkedin_indian"]])
-
-    offshore_selected = []
-    offshore_country_counts: dict[str, int] = {}
-    for job in linkedin_offshore:
-        if len(offshore_selected) >= caps["linkedin_offshore"]:
-            break
-        country = _infer_country(job)
-        if offshore_country_counts.get(country, 0) >= caps["max_per_offshore_country"]:
-            continue
-        offshore_country_counts[country] = offshore_country_counts.get(country, 0) + 1
-        offshore_selected.append(job)
-
-    selected.extend(offshore_selected)
-
-    selected.extend(internshala[:caps["internshala"]])
-    selected.extend(unstop[:caps["unstop"]])
-    selected.extend(other)
-    return selected
+SCRAPER_REGISTRY = [
+    ("LinkedIn/Indeed/Glassdoor (Internships)", scrape_jobspy_internships),
+    ("LinkedIn/Indeed/Glassdoor (Full-Time)",   scrape_jobspy_fulltime_remote),
+    ("Internshala",                             scrape_internshala),
+    ("Unstop",                                  scrape_unstop),
+    ("Naukri",                                  scrape_naukri),
+    ("YC Jobs",                                 scrape_yc),
+    ("Wellfound",                               scrape_wellfound),
+    ("Turing",                                  scrape_turing),
+    ("Mercor",                                  scrape_mercor),
+    ("HN Jobs",                                 scrape_hn),
+]
 
 
 def _source_counts(jobs: list[dict]) -> dict[str, int]:
@@ -141,86 +59,158 @@ def _source_counts(jobs: list[dict]) -> dict[str, int]:
     return counts
 
 
+def _get_indian_hints() -> list[str]:
+    return load_config()["locations"]["indian_hints"]
+
+
+def _is_indian_listing(job: dict) -> bool:
+    haystack = _normalize(f"{job.get('location', '')} {job.get('company', '')}")
+    return any(token in haystack for token in _get_indian_hints())
+
+
+def _normalize(text: str) -> str:
+    return (text or "").lower().strip()
+
+
+def _infer_country(job: dict) -> str:
+    location = _normalize(str(job.get("location", "")))
+    if _is_indian_listing(job):
+        return "India"
+    country_aliases = {
+        "united states": "United States", "usa": "United States", "u.s.": "United States",
+        "canada": "Canada", "australia": "Australia", "new zealand": "New Zealand",
+        "england": "United Kingdom", "united kingdom": "United Kingdom", "uk": "United Kingdom",
+        "germany": "Germany", "netherlands": "Netherlands", "france": "France",
+        "singapore": "Singapore", "uae": "UAE", "united arab emirates": "UAE",
+        "indonesia": "Indonesia", "philippines": "Philippines", "vietnam": "Vietnam",
+        "china": "China", "japan": "Japan", "south korea": "South Korea",
+        "iran": "Iran", "europe": "Europe", "asia": "Asia",
+        "middle east": "Middle East", "remote": "Remote", "worldwide": "Worldwide",
+    }
+    for alias, country in country_aliases.items():
+        if alias in location:
+            return country
+    if "," in location:
+        tail = location.split(",")[-1].strip()
+        if tail:
+            return tail.title()
+    return "Other"
+
+
+def _apply_source_caps(jobs: list[dict]) -> list[dict]:
+    cfg  = load_config()["sources"]
+
+    # Per-source cap lookup: (source_name, job_type) → config key
+    cap_map: dict[tuple[str, str], int] = {
+        ("LinkedIn",  "internship"):        cfg.get("cap_linkedin_indian", 10) + cfg.get("cap_linkedin_offshore", 10),
+        ("Indeed",    "internship"):        cfg.get("cap_indeed_internship", 8),
+        ("Glassdoor", "internship"):        cfg.get("cap_glassdoor_internship", 8),
+        ("LinkedIn",  "full_time_remote"):  cfg.get("cap_linkedin_fulltime", 8),
+        ("Indeed",    "full_time_remote"):  cfg.get("cap_indeed_fulltime", 8),
+        ("Glassdoor", "full_time_remote"):  cfg.get("cap_glassdoor_fulltime", 8),
+        ("Internshala", "internship"):      cfg.get("cap_internshala", 5),
+        ("Unstop",    "internship"):        cfg.get("cap_unstop", 5),
+        ("Naukri",    "internship"):         cfg.get("cap_naukri", 8),
+        ("HN Jobs",   "internship"):        cfg.get("cap_hn", 8),
+        ("HN Jobs",   "full_time_remote"):  cfg.get("cap_hn", 8),
+        ("YC Jobs",   "internship"):        cfg.get("cap_yc", 10),
+        ("YC Jobs",   "full_time_remote"):  cfg.get("cap_yc", 10),
+        ("Wellfound", "internship"):        cfg.get("cap_wellfound", 10),
+        ("Wellfound", "full_time_remote"):  cfg.get("cap_wellfound", 10),
+        ("Turing",    "full_time_remote"):  cfg.get("cap_turing", 8),
+        ("Mercor",    "full_time_remote"):  cfg.get("cap_mercor", 8),
+    }
+
+    # LinkedIn internship: special India/offshore split
+    linkedin_intern = [j for j in jobs if j.get("source") == "LinkedIn" and j.get("job_type") != "full_time_remote"]
+    linkedin_intern = sorted(linkedin_intern, key=quality_score, reverse=True)
+    cap_indian   = cfg.get("cap_linkedin_indian", 10)
+    cap_offshore = cfg.get("cap_linkedin_offshore", 10)
+    max_per_country = cfg.get("max_per_offshore_country", 3)
+
+    li_indian   = [j for j in linkedin_intern if _is_indian_listing(j)][:cap_indian]
+    li_offshore_raw = [j for j in linkedin_intern if not _is_indian_listing(j)]
+    li_offshore: list[dict] = []
+    country_counts: dict[str, int] = {}
+    for job in li_offshore_raw:
+        if len(li_offshore) >= cap_offshore:
+            break
+        c = _infer_country(job)
+        if country_counts.get(c, 0) >= max_per_country:
+            continue
+        country_counts[c] = country_counts.get(c, 0) + 1
+        li_offshore.append(job)
+
+    selected: list[dict] = list(li_indian) + list(li_offshore)
+
+    # All other sources: simple cap
+    per_source_counts: dict[tuple[str, str], int] = {}
+    for job in jobs:
+        src   = str(job.get("source", ""))
+        jtype = str(job.get("job_type", "internship"))
+
+        # Skip LinkedIn internships (already handled above)
+        if src == "LinkedIn" and jtype != "full_time_remote":
+            continue
+
+        key = (src, jtype)
+        cap = cap_map.get(key, 99)
+        count = per_source_counts.get(key, 0)
+        if count < cap:
+            selected.append(job)
+            per_source_counts[key] = count + 1
+
+    return selected
+
+
 def main():
-    logger.info("═══════════════════════════════════════")
-    logger.info("  Internship Hunter — Starting Run")
-    logger.info("═══════════════════════════════════════")
+    logger.info("═══════════════════════════════════════════")
+    logger.info("  Internship Hunter v2 — Starting Run")
+    logger.info("═══════════════════════════════════════════")
 
-    all_jobs = []
+    all_jobs: list[dict] = []
 
-    # ── LinkedIn ──────────────────────────────
-    logger.info("Scraping LinkedIn...")
-    try:
-        linkedin_jobs = scrape_linkedin()
-        logger.info(f"  LinkedIn: {len(linkedin_jobs)} raw results")
-        all_jobs.extend(linkedin_jobs)
-    except Exception as e:
-        logger.error(f"  LinkedIn scraper failed: {e}")
+    for name, scraper_fn in SCRAPER_REGISTRY:
+        logger.info(f"Scraping {name}...")
+        try:
+            jobs = scraper_fn()
+            logger.info(f"  {name}: {len(jobs)} raw results")
+            all_jobs.extend(jobs)
+        except Exception as e:
+            logger.error(f"  {name} scraper failed: {e}")
 
-    # ── Internshala ───────────────────────────
-    logger.info("Scraping Internshala...")
-    try:
-        internshala_jobs = scrape_internshala()
-        logger.info(f"  Internshala: {len(internshala_jobs)} raw results")
-        all_jobs.extend(internshala_jobs)
-    except Exception as e:
-        logger.error(f"  Internshala scraper failed: {e}")
+    logger.info(f"Total raw: {len(all_jobs)} — by source: {_source_counts(all_jobs)}")
 
-    # ── Unstop ────────────────────────────────
-    logger.info("Scraping Unstop...")
-    try:
-        unstop_jobs = scrape_unstop()
-        logger.info(f"  Unstop: {len(unstop_jobs)} raw results")
-        all_jobs.extend(unstop_jobs)
-    except Exception as e:
-        logger.error(f"  Unstop scraper failed: {e}")
+    relevant = filter_relevant_jobs(all_jobs)
+    logger.info(f"After filters: {len(relevant)} — by source: {_source_counts(relevant)}")
 
-    logger.info(f"Total raw results: {len(all_jobs)}")
-    logger.info(f"Raw by source: {_source_counts(all_jobs)}")
+    new_jobs = filter_new_jobs(relevant)
+    logger.info(f"After dedup: {len(new_jobs)} — by source: {_source_counts(new_jobs)}")
 
-    # Keep only paid, tech-focused internships (dev/devops/AI-ML/SE/SDE/SOE).
-    relevant_jobs = filter_relevant_jobs(all_jobs)
-    logger.info(f"Relevant jobs after role+paid filters: {len(relevant_jobs)}")
-    logger.info(f"Relevant by source: {_source_counts(relevant_jobs)}")
+    selected = _apply_source_caps(new_jobs)
+    logger.info(f"After caps: {len(selected)} — by source: {_source_counts(selected)}")
 
-    # ── Deduplication ─────────────────────────
-    new_jobs = filter_new_jobs(relevant_jobs)
-    logger.info(f"New (unseen) jobs after deduplication: {len(new_jobs)}")
-    logger.info(f"New by source: {_source_counts(new_jobs)}")
-
-    selected_jobs = _prioritize_sources(new_jobs)
-    caps = _get_source_caps()
-    logger.info(
-        "Selected jobs for delivery: %s (LinkedIn India<=%s, LinkedIn offshore<=%s, max %s per offshore country, Internshala<=%s, Unstop<=%s)",
-        len(selected_jobs),
-        caps["linkedin_indian"],
-        caps["linkedin_offshore"],
-        caps["max_per_offshore_country"],
-        caps["internshala"],
-        caps["unstop"],
-    )
-
-    # ── Notify ────────────────────────────────
-    if not selected_jobs:
-        logger.info("No new jobs to send. Sending empty digest anyway.")
+    internships = [j for j in selected if j.get("job_type") != "full_time_remote"]
+    fulltime    = [j for j in selected if j.get("job_type") == "full_time_remote"]
+    logger.info(f"Breakdown: {len(internships)} internship(s), {len(fulltime)} remote full-time")
 
     logger.info("Sending email...")
     try:
-        send_email(selected_jobs)
+        send_email(selected)
         logger.info("  Email sent ✓")
     except Exception as e:
         logger.error(f"  Email failed: {e}")
 
-    logger.info("Sending Telegram message...")
+    logger.info("Sending Telegram...")
     try:
-        send_telegram(selected_jobs)
+        send_telegram(selected)
         logger.info("  Telegram sent ✓")
     except Exception as e:
         logger.error(f"  Telegram failed: {e}")
 
-    logger.info("═══════════════════════════════════════")
-    logger.info(f"  Done. {len(selected_jobs)} new internship(s) delivered.")
-    logger.info("═══════════════════════════════════════")
+    logger.info("═══════════════════════════════════════════")
+    logger.info(f"  Done. {len(selected)} job(s) delivered ({len(internships)} intern + {len(fulltime)} full-time).")
+    logger.info("═══════════════════════════════════════════")
 
 
 if __name__ == "__main__":

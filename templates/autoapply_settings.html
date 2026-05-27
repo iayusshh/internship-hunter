@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Bot Settings — Internship Hunter{% endblock %}
+{% block topbar_title %}Auto-Apply Bot Settings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Auto-Apply Bot</h1>
+  <p class="page-desc">Configure automated job applications and your applicant profile.</p>
+</div>
+
+<!-- Settings form -->
+<form method="POST">
+  <input type="hidden" name="action" value="settings">
+
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+      <h2 class="card-title">Bot Settings</h2>
+      <p class="card-desc">Control how the bot behaves during each pipeline run.</p>
+    </div>
+
+    <div class="field-group">
+      <div class="field toggle-field">
+        <label class="toggle-label">
+          <span class="toggle-text">
+            <strong>Enable Auto-Apply</strong>
+            <small>Apply to matching jobs automatically after each digest run</small>
+          </span>
+          <input type="checkbox" name="enabled" id="enabled"
+                 {% if aa.get("enabled") %}checked{% endif %}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="field toggle-field">
+        <label class="toggle-label">
+          <span class="toggle-text">
+            <strong>AI Cover Letters</strong>
+            <small>Generate a unique cover letter per job using Claude Haiku</small>
+          </span>
+          <input type="checkbox" name="cover_letter_enabled" id="cover_letter_enabled"
+                 {% if aa.get("cover_letter_enabled", True) %}checked{% endif %}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="field toggle-field">
+        <label class="toggle-label">
+          <span class="toggle-text">
+            <strong>Headless Mode</strong>
+            <small>Run browser invisibly (disable for debugging or 2FA)</small>
+          </span>
+          <input type="checkbox" name="headless" id="headless"
+                 {% if aa.get("headless", True) %}checked{% endif %}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Max Applications Per Day</label>
+        <div class="stepper">
+          <button type="button" class="stepper-dec">−</button>
+          <input type="number" class="stepper-input" name="max_per_day" min="1" max="100"
+                 value="{{ aa.get('max_per_day', 20) }}">
+          <button type="button" class="stepper-inc">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Platform toggles -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-header">
+      <h2 class="card-title">Platforms</h2>
+      <p class="card-desc">Select which platforms the bot applies to.</p>
+    </div>
+    <div class="field-group">
+      {% set platforms_enabled = aa.get("platforms", ["linkedin", "indeed", "internshala"]) %}
+      {% for pid, plabel in [("linkedin","LinkedIn Easy Apply"),("indeed","Indeed Quick Apply"),("internshala","Internshala")] %}
+      <div class="field toggle-field">
+        <label class="toggle-label">
+          <span class="toggle-text">
+            <strong>{{ plabel }}</strong>
+          </span>
+          <input type="checkbox" name="platform_{{ pid }}"
+                 {% if pid in platforms_enabled %}checked{% endif %}>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div style="padding:0 0 20px;">
+    <button type="submit" class="btn btn-primary">Save Settings</button>
+  </div>
+</form>
+
+<!-- Credential status -->
+<div class="card" style="margin-bottom:20px;">
+  <div class="card-header">
+    <h2 class="card-title">Credential Status</h2>
+    <p class="card-desc">Environment variables read at runtime. Set them in your <code>.env</code> file or GitHub Secrets.</p>
+  </div>
+  <div class="field-group">
+    {% set cred_list = [
+      ("LINKEDIN_EMAIL",       creds.linkedin_email,       "LinkedIn email"),
+      ("LINKEDIN_PASSWORD",    creds.linkedin_password,    "LinkedIn password"),
+      ("INDEED_EMAIL",         creds.indeed_email,         "Indeed email"),
+      ("INDEED_PASSWORD",      creds.indeed_password,      "Indeed password"),
+      ("INTERNSHALA_EMAIL",    creds.internshala_email,    "Internshala email"),
+      ("INTERNSHALA_PASSWORD", creds.internshala_password, "Internshala password"),
+      ("ANTHROPIC_API_KEY",    creds.anthropic_api_key,    "Claude API key (cover letters)"),
+    ] %}
+    {% for var, is_set, desc in cred_list %}
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:10px 0;border-bottom:1px solid #f1f5f9;">
+      <div>
+        <code style="font-size:13px;color:#374151;">{{ var }}</code>
+        <span style="font-size:12px;color:#64748b;margin-left:8px;">— {{ desc }}</span>
+      </div>
+      <span style="font-size:12px;font-weight:600;
+                   color:{% if is_set %}#16a34a{% else %}#d97706{% endif %};">
+        {% if is_set %}✓ Set{% else %}⚠ Not set{% endif %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Applicant profile editor -->
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Applicant Profile</h2>
+    <p class="card-desc">
+      Stored locally in <code>applicant_profile.json</code> (gitignored — never committed).
+      Fill in your details so the bot can complete application forms.
+    </p>
+  </div>
+  <form method="POST">
+    <input type="hidden" name="action" value="save_profile">
+    <div class="field">
+      <textarea name="profile_json" rows="22"
+                style="width:100%;font-family:monospace;font-size:13px;
+                       border:1px solid #e2e8f0;border-radius:8px;padding:12px;
+                       resize:vertical;background:#f8fafc;color:#1e293b;"
+                placeholder='{"full_name":"","email":"","phone":"","bio":"", ...}'>{{ profile_json }}</textarea>
+    </div>
+    <div style="margin-top:12px;">
+      <button type="submit" class="btn btn-primary">Save Profile</button>
+      <span style="font-size:12px;color:#94a3b8;margin-left:12px;">Ctrl+S also saves</span>
+    </div>
+  </form>
+</div>
+{% endblock %}

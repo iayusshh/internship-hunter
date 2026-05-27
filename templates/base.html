@@ -45,6 +45,18 @@
         <span>Block Lists</span>
       </a>
 
+      <div class="sb-section">Auto-Apply</div>
+      <a href="{{ url_for('applications') }}"
+         class="sb-link {% if request.endpoint == 'applications' %}active{% endif %}">
+        <span class="icon">AP</span>
+        <span>Applications</span>
+      </a>
+      <a href="{{ url_for('autoapply_settings') }}"
+         class="sb-link {% if request.endpoint == 'autoapply_settings' %}active{% endif %}">
+        <span class="icon">BS</span>
+        <span>Bot Settings</span>
+      </a>
+
       <div class="sb-section">Delivery</div>
       <a href="{{ url_for('sources') }}"
          class="sb-link {% if request.endpoint == 'sources' %}active{% endif %}">

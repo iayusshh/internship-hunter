@@ -11,7 +11,7 @@ permissions:
 jobs:
   hunt:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repo
@@ -25,12 +25,22 @@ jobs:
       - name: Install Python dependencies
         run: pip install --no-cache-dir -r requirements.txt
 
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
       - name: Run Internship Hunter
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          LINKEDIN_EMAIL: ${{ secrets.LINKEDIN_EMAIL }}
+          LINKEDIN_PASSWORD: ${{ secrets.LINKEDIN_PASSWORD }}
+          INDEED_EMAIL: ${{ secrets.INDEED_EMAIL }}
+          INDEED_PASSWORD: ${{ secrets.INDEED_PASSWORD }}
+          INTERNSHALA_EMAIL: ${{ secrets.INTERNSHALA_EMAIL }}
+          INTERNSHALA_PASSWORD: ${{ secrets.INTERNSHALA_PASSWORD }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: python main.py
 
       - name: Commit updated seen_jobs.json
