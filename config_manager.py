@@ -68,6 +68,17 @@ DEFAULT_CONFIG: dict = {
             "machine learning",
         ],
 
+        # Unstop hackathons: search terms
+        "unstop_hackathon_keywords": [
+            "machine learning",
+            "web development",
+            "data science",
+            "software",
+            "ai",
+            "open innovation",
+            "blockchain",
+        ],
+
         # YC / Work at a Startup: role slugs
         "yc_roles": [
             "software_engineer",
@@ -275,6 +286,7 @@ DEFAULT_CONFIG: dict = {
         "cap_internshala":         5,
         "cap_unstop":              5,
         "cap_naukri":              8,
+        "cap_unstop_hackathon":    5,
 
         # Community sources
         "cap_hn":                  8,

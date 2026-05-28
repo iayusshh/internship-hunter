@@ -16,10 +16,11 @@ def _get_recipients() -> list[str]:
     return load_config()["notifications"]["email_recipients"]
 
 
-def _split_by_type(jobs: list[dict]) -> tuple[list[dict], list[dict]]:
-    internships = [j for j in jobs if j.get("job_type") != "full_time_remote"]
+def _split_by_type(jobs: list[dict]) -> tuple[list[dict], list[dict], list[dict]]:
+    internships = [j for j in jobs if j.get("job_type") == "internship"]
     fulltime    = [j for j in jobs if j.get("job_type") == "full_time_remote"]
-    return internships, fulltime
+    hackathons  = [j for j in jobs if j.get("job_type") == "hackathon"]
+    return internships, fulltime, hackathons
 
 
 # ─────────────────────────────────────────────
@@ -81,22 +82,27 @@ def _source_section_html(title: str, header_color: str, items: list[dict], show_
 
 def _build_html(jobs: list[dict]) -> str:
     today = date.today().strftime("%B %d, %Y")
-    internships, fulltime = _split_by_type(jobs)
+    internships, fulltime, hackathons = _split_by_type(jobs)
 
     body = ""
     if internships:
         body += _source_section_html("📚 Internships", "#4f46e5", internships, show_stipend=True)
     if fulltime:
         body += _source_section_html("💼 Remote Full-Time Jobs", "#0f766e", fulltime, show_stipend=False)
+    if hackathons:
+        body += _source_section_html("🏆 Hackathons", "#b45309", hackathons, show_stipend=True)
 
     n_intern  = len(internships)
     n_full    = len(fulltime)
-    if n_intern and n_full:
-        subtitle = f"{n_intern} internship(s) + {n_full} remote job(s)"
-    elif n_intern:
-        subtitle = f"{n_intern} internship(s)"
-    else:
-        subtitle = f"{n_full} remote job(s)"
+    n_hack    = len(hackathons)
+    parts = []
+    if n_intern:
+        parts.append(f"{n_intern} internship(s)")
+    if n_full:
+        parts.append(f"{n_full} remote job(s)")
+    if n_hack:
+        parts.append(f"{n_hack} hackathon(s)")
+    subtitle = " + ".join(parts) if parts else "No new listings"
 
     return f"""
 <!DOCTYPE html>
@@ -129,14 +135,17 @@ def send_email(jobs: list[dict]) -> bool:
         logger.warning("No email recipients configured — skipping email.")
         return False
 
-    internships, fulltime = _split_by_type(jobs)
-    n_i, n_f = len(internships), len(fulltime)
-    if n_i and n_f:
-        subject = f"🎯 {n_i} Internships + {n_f} Remote Jobs Today — {date.today().strftime('%b %d')}"
-    elif n_i:
-        subject = f"🎯 {n_i} New Internships Today — {date.today().strftime('%b %d')}"
-    else:
-        subject = f"💼 {n_f} Remote Jobs Today — {date.today().strftime('%b %d')}"
+    internships, fulltime, hackathons = _split_by_type(jobs)
+    n_i, n_f, n_h = len(internships), len(fulltime), len(hackathons)
+    today_str = date.today().strftime('%b %d')
+    parts = []
+    if n_i:
+        parts.append(f"{n_i} Internship{'s' if n_i > 1 else ''}")
+    if n_f:
+        parts.append(f"{n_f} Remote Job{'s' if n_f > 1 else ''}")
+    if n_h:
+        parts.append(f"{n_h} Hackathon{'s' if n_h > 1 else ''}")
+    subject = f"🎯 {' + '.join(parts)} Today — {today_str}" if parts else f"🎯 Daily Digest — {today_str}"
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -157,7 +166,7 @@ def send_email(jobs: list[dict]) -> bool:
 # ─────────────────────────────────────────────
 
 # Platforms the auto-apply bot can handle
-_APPLY_PLATFORMS = {"LinkedIn", "Indeed", "Internshala", "Naukri"}
+_APPLY_PLATFORMS = {"LinkedIn", "Indeed", "Internshala", "Naukri", "Unstop Hackathons"}
 
 
 def _esc(text: str) -> str:
@@ -166,11 +175,16 @@ def _esc(text: str) -> str:
 
 
 def _fmt_job_card(job: dict) -> str:
-    """Format a single job as an HTML card for Telegram."""
-    is_intern = job.get("job_type") != "full_time_remote"
-    icon  = "📚" if is_intern else "💼"
-    jtype = "Internship" if is_intern else "Full-Time"
-    comp  = job.get("stipend") or job.get("salary") or ""
+    """Format a single job/hackathon as an HTML card for Telegram."""
+    jtype_val = job.get("job_type", "internship")
+    if jtype_val == "hackathon":
+        icon, jtype_label = "🏆", "Hackathon"
+    elif jtype_val == "full_time_remote":
+        icon, jtype_label = "💼", "Full-Time"
+    else:
+        icon, jtype_label = "📚", "Internship"
+
+    comp = job.get("stipend") or job.get("salary") or ""
 
     lines = [
         f"{icon} <b>{_esc(job.get('title', ''))}</b>",
@@ -179,8 +193,11 @@ def _fmt_job_card(job: dict) -> str:
     if job.get("location"):
         lines.append(f"📍 {_esc(job['location'])}")
     if comp:
-        lines.append(f"💰 {_esc(str(comp))}")
-    lines.append(f"<i>{_esc(job.get('source', ''))} · {jtype}</i>")
+        prize_label = "🏅 Prize" if jtype_val == "hackathon" else "💰"
+        lines.append(f"{prize_label} {_esc(str(comp))}")
+    if jtype_val == "hackathon" and job.get("date_posted") and job["date_posted"] != "Recent":
+        lines.append(f"⏰ Deadline: {_esc(job['date_posted'])}")
+    lines.append(f"<i>{_esc(job.get('source', ''))} · {jtype_label}</i>")
     return "\n".join(lines)
 
 
@@ -193,7 +210,8 @@ def _job_keyboard(job: dict):
 
     row1, row2 = [], []
     if source in _APPLY_PLATFORMS and url:
-        row1.append(InlineKeyboardButton("🤖 Auto Apply", callback_data=f"apply:{source}"))
+        btn_label = "🤖 Register" if job.get("job_type") == "hackathon" else "🤖 Auto Apply"
+        row1.append(InlineKeyboardButton(btn_label, callback_data=f"apply:{source}"))
     if url:
         row1.append(InlineKeyboardButton("🔗 Open", url=url))
 
@@ -212,7 +230,7 @@ async def _send_telegram_async(jobs: list[dict]) -> None:
     chat = os.environ["TELEGRAM_CHAT_ID"]
     today = date.today().strftime("%B %d, %Y")
 
-    internships, fulltime = _split_by_type(jobs)
+    internships, fulltime, hackathons = _split_by_type(jobs)
 
     if not jobs:
         await bot.send_message(
@@ -222,13 +240,21 @@ async def _send_telegram_async(jobs: list[dict]) -> None:
         )
         return
 
+    summary_parts = []
+    if internships:
+        summary_parts.append(f"📚 {len(internships)} internship(s)")
+    if fulltime:
+        summary_parts.append(f"💼 {len(fulltime)} remote job(s)")
+    if hackathons:
+        summary_parts.append(f"🏆 {len(hackathons)} hackathon(s)")
+
     # Header summary
     await bot.send_message(
         chat_id=chat,
         text=(
             f"🎯 <b>Daily Digest — {today}</b>\n"
-            f"📚 {len(internships)} internship(s)  ·  💼 {len(fulltime)} remote job(s)\n\n"
-            f"Tap <b>🤖 Auto Apply</b> to apply instantly, or <b>🔗 Open</b> to apply manually."
+            f"{'  ·  '.join(summary_parts)}\n\n"
+            f"Tap <b>🤖 Auto Apply</b> / <b>🤖 Register</b> to act instantly, or <b>🔗 Open</b> to do it manually."
         ),
         parse_mode="HTML",
     )

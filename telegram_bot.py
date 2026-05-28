@@ -29,6 +29,7 @@ from autoapply.linkedin_applier    import LinkedInApplier
 from autoapply.indeed_applier      import IndeedApplier
 from autoapply.internshala_applier import InternshalaApplier
 from autoapply.naukri_applier      import NaukriApplier
+from autoapply.unstop_applier      import UnstopApplier
 from outreach.cold_email    import find_email, draft_cold_email, send_cold_email, infer_domain
 from outreach.referral_finder import find_referrals, linkedin_search_url
 from config_manager import load_config
@@ -43,10 +44,11 @@ logger = logging.getLogger("telegram_bot")
 _PROFILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "applicant_profile.json")
 
 _PLATFORM_MAP = {
-    "LinkedIn":    LinkedInApplier,
-    "Indeed":      IndeedApplier,
-    "Internshala": InternshalaApplier,
-    "Naukri":      NaukriApplier,
+    "LinkedIn":          LinkedInApplier,
+    "Indeed":            IndeedApplier,
+    "Internshala":       InternshalaApplier,
+    "Naukri":            NaukriApplier,
+    "Unstop Hackathons": UnstopApplier,
 }
 
 
@@ -75,7 +77,7 @@ def _parse_job_card(text: str) -> tuple[str, str]:
     title, company = "", ""
     for line in (text or "").split("\n"):
         line = line.strip()
-        if not title and any(line.startswith(icon) for icon in ("📚", "💼")):
+        if not title and any(line.startswith(icon) for icon in ("📚", "💼", "🏆")):
             title = line.split(" ", 1)[-1].strip()
         elif not company and line.startswith("🏢"):
             company = line.replace("🏢", "").strip()
@@ -140,12 +142,18 @@ async def handle_apply(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
     # Parse job metadata from the card text
     title, company = _parse_job_card(query.message.text or "")
-    jtype = "internship" if "📚" in (query.message.text or "") else "full_time_remote"
+    card_text = query.message.text or ""
+    if "🏆" in card_text:
+        jtype = "hackathon"
+    elif "💼" in card_text:
+        jtype = "full_time_remote"
+    else:
+        jtype = "internship"
     job = {"url": job_url, "title": title, "company": company, "source": source, "job_type": jtype}
 
-    # Generate tailored cover letter
+    # Generate tailored cover letter (skip for hackathons)
     cover_letter = ""
-    if cfg.get("cover_letter_enabled", True):
+    if cfg.get("cover_letter_enabled", True) and jtype != "hackathon":
         try:
             if cfg.get("use_resume_tailor", True):
                 cover_letter = tailor_cover_letter(title, company, "", profile)

@@ -17,7 +17,7 @@ except ImportError:
 
 from scrapers.jobspy_scraper    import scrape_jobspy_internships, scrape_jobspy_fulltime_remote
 from scrapers.internshala_scraper import scrape_internshala
-from scrapers.unstop_scraper    import scrape_unstop
+from scrapers.unstop_scraper    import scrape_unstop, scrape_unstop_hackathons
 from scrapers.yc_scraper        import scrape_yc
 from scrapers.wellfound_scraper import scrape_wellfound
 from scrapers.turing_scraper    import scrape_turing
@@ -42,6 +42,7 @@ SCRAPER_REGISTRY = [
     ("LinkedIn/Indeed/Glassdoor (Full-Time)",   scrape_jobspy_fulltime_remote),
     ("Internshala",                             scrape_internshala),
     ("Unstop",                                  scrape_unstop),
+    ("Unstop Hackathons",                       scrape_unstop_hackathons),
     ("Naukri",                                  scrape_naukri),
     ("YC Jobs",                                 scrape_yc),
     ("Wellfound",                               scrape_wellfound),
@@ -109,7 +110,8 @@ def _apply_source_caps(jobs: list[dict]) -> list[dict]:
         ("Indeed",    "full_time_remote"):  cfg.get("cap_indeed_fulltime", 8),
         ("Glassdoor", "full_time_remote"):  cfg.get("cap_glassdoor_fulltime", 8),
         ("Internshala", "internship"):      cfg.get("cap_internshala", 5),
-        ("Unstop",    "internship"):        cfg.get("cap_unstop", 5),
+        ("Unstop",    "internship"):          cfg.get("cap_unstop", 5),
+        ("Unstop Hackathons", "hackathon"): cfg.get("cap_unstop_hackathon", 5),
         ("Naukri",    "internship"):         cfg.get("cap_naukri", 8),
         ("HN Jobs",   "internship"):        cfg.get("cap_hn", 8),
         ("HN Jobs",   "full_time_remote"):  cfg.get("cap_hn", 8),

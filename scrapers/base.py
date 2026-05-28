@@ -1,7 +1,7 @@
 from typing import TypedDict, Literal, Optional
 from abc import ABC, abstractmethod
 
-JobType = Literal["internship", "full_time_remote"]
+JobType = Literal["internship", "full_time_remote", "hackathon"]
 
 
 class JobDict(TypedDict, total=False):

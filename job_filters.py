@@ -218,6 +218,12 @@ def filter_relevant_jobs(jobs: list[dict]) -> list[dict]:
         if jtype == "full_time_remote" and not enable_fulltime:
             continue
 
+        # Hackathons bypass standard tech/paid filters — just block dubious/blocked entries
+        if jtype == "hackathon":
+            if not _is_blocked_company(job) and not _looks_dubious(job):
+                filtered.append(job)
+            continue
+
         # Universal checks
         if _is_blocked_company(job):
             continue
