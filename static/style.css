@@ -700,6 +700,27 @@ body::after {
 }
 
 /* ==================================================
+   PAGE HEADER (used by inner pages)
+================================================== */
+.page-header {
+  margin-bottom: 20px;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
+}
+
+.page-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+}
+
+/* ==================================================
    FORM PAGES
 ================================================== */
 .form-page-header {

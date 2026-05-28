@@ -36,10 +36,7 @@
     <h1>Internship Hunter v2</h1>
     <p>9 sources · Internships + Remote Full-Time · Configurable filters · Daily digest</p>
   </div>
-  <form method="post" action="{{ url_for('run_pipeline') }}" id="runForm"
-        onsubmit="return confirm('Trigger a full scrape + notify run now?')">
-    <button type="submit" class="run-btn" id="runBtn">▶ Run Pipeline Now</button>
-  </form>
+  <button class="run-btn" id="runBtn" onclick="startPipeline(this)">▶ Run Pipeline Now</button>
 </div>
 
 {# ── Stat cards ────────────────────────────────────────── #}
@@ -173,9 +170,28 @@
 
 {% block extra_js %}
 <script>
-document.getElementById('runBtn')?.addEventListener('click', function() {
-  this.disabled = true;
-  this.textContent = 'Running…';
-});
+function startPipeline(btn) {
+  btn.disabled = true;
+  btn.textContent = '⏳ Starting…';
+
+  fetch('/run', { method: 'POST' })
+    .then(r => {
+      if (r.ok || r.redirected) {
+        btn.textContent = '⏳ Running…';
+        // trigger the global pipeline panel
+        if (typeof connectSSE === 'function') connectSSE();
+        else window._pipelineStart && window._pipelineStart();
+      } else {
+        btn.disabled = false;
+        btn.textContent = '▶ Run Pipeline Now';
+        alert('Failed to start pipeline. Check the terminal.');
+      }
+    })
+    .catch(() => {
+      btn.disabled = false;
+      btn.textContent = '▶ Run Pipeline Now';
+      alert('Could not reach server.');
+    });
+}
 </script>
 {% endblock %}

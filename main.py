@@ -205,6 +205,15 @@ def main():
     fulltime    = [j for j in selected if j.get("job_type") == "full_time_remote"]
     logger.info(f"Breakdown: {len(internships)} internship(s), {len(fulltime)} remote full-time")
 
+    # Persist last-run jobs so the dashboard Jobs page can display them
+    try:
+        import json as _json, time as _time
+        _cache_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".last_run_jobs.json")
+        with open(_cache_path, "w") as _f:
+            _json.dump({"fetched_at": _time.time(), "jobs": selected}, _f, default=str)
+    except Exception as e:
+        logger.warning(f"Could not save jobs cache: {e}")
+
     logger.info("Sending email...")
     try:
         send_email(selected)

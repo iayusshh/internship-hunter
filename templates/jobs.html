@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block title %}Jobs — Internship Hunter{% endblock %}
+{% block topbar_title %}Latest Jobs{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Latest Jobs</h1>
+  <p class="page-desc">
+    Jobs from the last pipeline run.
+    {% if fetched_at %}Last run: <strong>{{ fetched_at }}</strong>.{% endif %}
+    Run the pipeline from the <a href="{{ url_for('dashboard') }}">Dashboard</a> to refresh.
+  </p>
+</div>
+
+<!-- Tabs -->
+{% set tabs = [
+  ("internships", "📚 Internships",  internships|length),
+  ("fulltime",    "💼 Remote Full-Time", fulltime|length),
+  ("hackathons",  "🏆 Hackathons",   hackathons|length),
+] %}
+<div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+  {% for key, label, count in tabs %}
+    <a href="{{ url_for('jobs_page', tab=key) }}"
+       style="padding:8px 18px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;
+              {% if active_tab == key %}background:#6366f1;color:#fff;{% else %}background:#f1f5f9;color:#475569;{% endif %}">
+      {{ label }} <span style="opacity:0.75;font-weight:400;">({{ count }})</span>
+    </a>
+  {% endfor %}
+</div>
+
+{% if active_tab == "internships" %}
+  {% set jobs_list = internships %}
+  {% set show_stipend = true %}
+  {% set show_deadline = false %}
+{% elif active_tab == "fulltime" %}
+  {% set jobs_list = fulltime %}
+  {% set show_stipend = false %}
+  {% set show_deadline = false %}
+{% else %}
+  {% set jobs_list = hackathons %}
+  {% set show_stipend = true %}
+  {% set show_deadline = true %}
+{% endif %}
+
+{% set _APPLY_SOURCES = ["LinkedIn", "Indeed", "Internshala", "Naukri", "Unstop", "Unstop Hackathons"] %}
+
+{% if jobs_list %}
+<div style="display:grid;gap:12px;">
+  {% for job in jobs_list %}
+  {% set url   = job.url or "" %}
+  {% set src   = job.source or "" %}
+  {% set jtype = job.job_type or "internship" %}
+  {% set st    = job._status or "pending" %}
+
+  <div class="card" style="padding:14px 18px;" id="card-{{ loop.index }}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+
+      <!-- Left: info -->
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:3px;">
+          <span style="font-size:14px;font-weight:600;color:#1e293b;">{{ job.title or "N/A" }}</span>
+          {% if job.is_remote or "online" in (job.location or "")|lower %}
+            <span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:600;">Remote</span>
+          {% endif %}
+        </div>
+        <div style="font-size:12px;color:#475569;margin-bottom:5px;">
+          🏢 {{ job.company or "N/A" }}
+          &nbsp;·&nbsp;
+          📍 {{ job.location or "N/A" }}
+          &nbsp;·&nbsp;
+          <span style="color:#94a3b8;">{{ src }}</span>
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#64748b;">
+          {% if show_stipend and job.stipend %}
+            <span>💰 {{ job.stipend }}</span>
+          {% endif %}
+          {% if not show_stipend and (job.salary or job.min_amount) %}
+            <span>💵 {% if job.min_amount %}${{ job.min_amount|int }}{% if job.max_amount %} – ${{ job.max_amount|int }}{% endif %}/yr{% else %}{{ job.salary }}{% endif %}</span>
+          {% endif %}
+          {% if show_deadline and job.date_posted and job.date_posted != "Recent" %}
+            <span>⏰ Deadline: {{ job.date_posted }}</span>
+          {% elif not show_deadline and job.date_posted %}
+            <span>📅 {{ job.date_posted }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Right: action buttons -->
+      <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap;">
+
+        <!-- Status badge -->
+        <span id="status-{{ loop.index }}"
+              data-url="{{ url }}"
+              data-source="{{ src }}"
+              data-title="{{ job.title or '' }}"
+              data-company="{{ job.company or '' }}"
+              data-jobtype="{{ jtype }}"
+              style="font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px;
+              {% if st == 'applied' %}background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;
+              {% elif st == 'applying' %}background:#fefce8;color:#ca8a04;border:1px solid #fde68a;
+              {% elif st.startswith('failed') %}background:#fef2f2;color:#dc2626;border:1px solid #fecaca;
+              {% else %}background:#f8fafc;color:#94a3b8;border:1px solid #e2e8f0;{% endif %}">
+          {% if st == "applied" %}✅ Applied
+          {% elif st == "applying" %}⏳ Applying…
+          {% elif st.startswith("failed") %}❌ {{ st[7:] or "Failed" }}
+          {% else %}○ Not Applied
+          {% endif %}
+        </span>
+
+        <!-- Apply button (only for supported platforms) -->
+        {% if src in _APPLY_SOURCES and url %}
+          {% if st == "applied" %}
+            <button class="btn btn-secondary" disabled style="padding:6px 14px;font-size:12px;opacity:0.5;">
+              {% if jtype == "hackathon" %}Registered{% else %}Applied{% endif %}
+            </button>
+          {% elif st == "applying" %}
+            <button class="btn btn-secondary" disabled style="padding:6px 14px;font-size:12px;opacity:0.5;">Applying…</button>
+          {% else %}
+            <button class="btn btn-primary apply-btn"
+                    data-idx="{{ loop.index }}"
+                    data-url="{{ url }}"
+                    data-source="{{ src }}"
+                    data-title="{{ job.title or '' }}"
+                    data-company="{{ job.company or '' }}"
+                    data-jobtype="{{ jtype }}"
+                    style="padding:6px 14px;font-size:12px;">
+              🤖 {% if jtype == "hackathon" %}Register{% else %}Auto Apply{% endif %}
+            </button>
+          {% endif %}
+        {% endif %}
+
+        <!-- Open link -->
+        {% if url %}
+          <a href="{{ url }}" target="_blank" rel="noopener"
+             class="btn btn-secondary" style="padding:6px 14px;font-size:12px;text-decoration:none;">
+            🔗 Open
+          </a>
+        {% endif %}
+
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="card" style="padding:40px;text-align:center;color:#94a3b8;">
+  <div style="font-size:36px;margin-bottom:10px;">
+    {% if active_tab == "hackathons" %}🏆{% elif active_tab == "fulltime" %}💼{% else %}📚{% endif %}
+  </div>
+  <div style="font-size:14px;font-weight:500;color:#64748b;margin-bottom:6px;">No jobs found</div>
+  <div style="font-size:13px;">
+    {% if fetched_at %}
+      No new {{ active_tab }} in the last pipeline run.
+    {% else %}
+      Run the pipeline first from the <a href="{{ url_for('dashboard') }}">Dashboard</a>.
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Apply button click ────────────────────────────────────────
+document.querySelectorAll('.apply-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const idx     = btn.dataset.idx;
+    const url     = btn.dataset.url;
+    const source  = btn.dataset.source;
+    const title   = btn.dataset.title;
+    const company = btn.dataset.company;
+    const jobtype = btn.dataset.jobtype;
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Applying…';
+    _setStatus(idx, 'applying');
+
+    fetch('/jobs/apply', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({url, source, title, company, job_type: jobtype}),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === 'applied') {
+        _setStatus(idx, 'applied');
+        btn.remove();
+      } else {
+        _pollStatus(idx, url, btn);
+      }
+    })
+    .catch(() => {
+      _setStatus(idx, 'failed:request error');
+      btn.disabled = false;
+      btn.textContent = '🤖 Retry';
+    });
+  });
+});
+
+// ── Poll until resolved ───────────────────────────────────────
+function _pollStatus(idx, url, btn) {
+  const interval = setInterval(() => {
+    fetch('/jobs/apply_status?url=' + encodeURIComponent(url))
+      .then(r => r.json())
+      .then(data => {
+        const s = data.status || 'pending';
+        _setStatus(idx, s);
+        if (s === 'applied') {
+          clearInterval(interval);
+          btn.remove();
+        } else if (s.startsWith('failed') || s === 'pending') {
+          clearInterval(interval);
+          btn.disabled = false;
+          btn.textContent = '🤖 Retry';
+        }
+      })
+      .catch(() => clearInterval(interval));
+  }, 2000);
+}
+
+// ── Update the status badge ───────────────────────────────────
+function _setStatus(idx, status) {
+  const el = document.getElementById('status-' + idx);
+  if (!el) return;
+  if (status === 'applied') {
+    el.style.cssText += 'background:#f0fdf4;color:#16a34a;border-color:#bbf7d0;';
+    el.textContent = '✅ Applied';
+  } else if (status === 'applying') {
+    el.style.cssText += 'background:#fefce8;color:#ca8a04;border-color:#fde68a;';
+    el.textContent = '⏳ Applying…';
+  } else if (status.startsWith('failed')) {
+    el.style.cssText += 'background:#fef2f2;color:#dc2626;border-color:#fecaca;';
+    el.textContent = '❌ ' + (status.slice(7) || 'Failed');
+  } else {
+    el.style.cssText += 'background:#f8fafc;color:#94a3b8;border-color:#e2e8f0;';
+    el.textContent = '○ Not Applied';
+  }
+}
+
+// ── Resume polling for in-progress cards on page load ─────────
+document.querySelectorAll('[id^="status-"]').forEach(el => {
+  if (el.textContent.trim().startsWith('⏳')) {
+    const idx = el.id.replace('status-', '');
+    const url = el.dataset.url;
+    const btn = document.querySelector(`.apply-btn[data-idx="${idx}"]`);
+    _pollStatus(idx, url, btn);
+  }
+});
+</script>
+{% endblock %}

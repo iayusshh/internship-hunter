@@ -10,6 +10,8 @@ import sys
 import os
 import json
 import time
+import threading
+import logging
 
 try:
     from dotenv import load_dotenv
@@ -17,10 +19,161 @@ try:
 except ImportError:
     pass
 
-from flask import Flask, render_template, request, redirect, url_for, flash
+import queue
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, stream_with_context
 from config_manager import load_config, save_config
 
-_PROFILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "applicant_profile.json")
+logger = logging.getLogger(__name__)
+
+_PROFILE_PATH    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "applicant_profile.json")
+
+# ── Pipeline streaming state ───────────────────────────────────────────────────
+_pipeline_state: dict = {"running": False, "status": "idle", "log": []}
+_pipeline_listeners: list[queue.Queue] = []
+_pipeline_lock_obj = threading.Lock()
+
+
+def _pipeline_broadcast(line: str) -> None:
+    with _pipeline_lock_obj:
+        _pipeline_state["log"].append(line)
+        for q in list(_pipeline_listeners):
+            try:
+                q.put_nowait(line)
+            except queue.Full:
+                pass
+
+
+def _run_pipeline_thread() -> None:
+    with _pipeline_lock_obj:
+        _pipeline_state["running"] = True
+        _pipeline_state["status"] = "running"
+        _pipeline_state["log"] = []
+
+    try:
+        proc = subprocess.Popen(
+            [sys.executable, "-u", "main.py"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            env={**os.environ},
+        )
+        for raw_line in proc.stdout:
+            _pipeline_broadcast(raw_line.rstrip("\n"))
+        proc.wait()
+        final = "done" if proc.returncode == 0 else "failed"
+    except Exception as exc:
+        _pipeline_broadcast(f"ERROR: {exc}")
+        final = "failed"
+
+    with _pipeline_lock_obj:
+        _pipeline_state["running"] = False
+        _pipeline_state["status"] = final
+    _pipeline_broadcast(f"__done__{final}")
+_JOBS_CACHE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".last_run_jobs.json")
+
+# In-memory apply status: url → "applying" | "applied" | "failed:<reason>"
+_apply_status: dict[str, str] = {}
+_apply_lock = threading.Lock()
+
+
+def _load_jobs_cache() -> tuple[list, float]:
+    if not os.path.exists(_JOBS_CACHE_PATH):
+        return [], 0.0
+    try:
+        with open(_JOBS_CACHE_PATH) as f:
+            data = json.load(f)
+        return data.get("jobs", []), float(data.get("fetched_at", 0))
+    except Exception:
+        return [], 0.0
+
+
+def _run_apply_background(job: dict) -> None:
+    url    = job.get("url", "")
+    source = job.get("source", "")
+    title  = job.get("company", "")
+    company = job.get("company", "")
+    jtype  = job.get("job_type", "internship")
+
+    try:
+        from autoapply.linkedin_applier    import LinkedInApplier
+        from autoapply.indeed_applier      import IndeedApplier
+        from autoapply.internshala_applier import InternshalaApplier
+        from autoapply.naukri_applier      import NaukriApplier
+        from autoapply.unstop_applier      import UnstopApplier
+        from autoapply.cover_letter        import generate_cover_letter
+        from autoapply.resume_tailor       import tailor_cover_letter
+        from autoapply import tracker
+
+        platform_map = {
+            "LinkedIn":          LinkedInApplier,
+            "Indeed":            IndeedApplier,
+            "Internshala":       InternshalaApplier,
+            "Naukri":            NaukriApplier,
+            "Unstop":            UnstopApplier,
+            "Unstop Hackathons": UnstopApplier,
+        }
+
+        ApplierClass = platform_map.get(source)
+        if not ApplierClass:
+            with _apply_lock:
+                _apply_status[url] = f"failed:{source} not supported"
+            return
+
+        profile = None
+        if os.path.exists(_PROFILE_PATH):
+            with open(_PROFILE_PATH) as f:
+                profile = json.load(f)
+        if not profile or not profile.get("full_name"):
+            with _apply_lock:
+                _apply_status[url] = "failed:profile not configured"
+            return
+
+        cfg = load_config().get("autoapply", {})
+        headless = bool(cfg.get("headless", True))
+
+        cover_letter = ""
+        if cfg.get("cover_letter_enabled", True) and jtype != "hackathon":
+            try:
+                if cfg.get("use_resume_tailor", True):
+                    cover_letter = tailor_cover_letter(title, company, "", profile)
+                else:
+                    cover_letter = generate_cover_letter(title, company, "", profile)
+            except Exception as e:
+                logger.warning(f"Cover letter gen failed: {e}")
+
+        tracker.init_db()
+        app_id = tracker.add_job(job)
+        tracker.update_status(app_id, "applying")
+
+        applier = ApplierClass(profile, headless=headless)
+        success, error = False, "unknown"
+        try:
+            applier.start()
+            if not applier.login():
+                error = "login_failed"
+            else:
+                success, error = applier.apply(job, cover_letter)
+        except Exception as e:
+            error = str(e)[:120]
+        finally:
+            applier.stop()
+
+        tracker.update_status(
+            app_id,
+            "applied" if success else "failed",
+            error_msg=None if success else error,
+            cover_letter=cover_letter or None,
+        )
+
+        with _apply_lock:
+            _apply_status[url] = "applied" if success else f"failed:{error[:40]}"
+
+    except Exception as e:
+        with _apply_lock:
+            _apply_status[url] = f"failed:{str(e)[:40]}"
+        logger.error(f"Apply background error for {url}: {e}")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET", "internship-hunter-local")
@@ -47,6 +200,77 @@ def _setup_status() -> dict:
             or config["search"].get("internshala_terms")
         ),
     }
+
+
+@app.route("/jobs")
+def jobs_page():
+    from autoapply import tracker as _tracker
+    jobs, fetched_at = _load_jobs_cache()
+    _tracker.init_db()
+
+    for job in jobs:
+        url = job.get("url", "")
+        if _tracker.already_applied(url):
+            job["_status"] = "applied"
+        else:
+            with _apply_lock:
+                job["_status"] = _apply_status.get(url, "pending")
+
+    internships = [j for j in jobs if j.get("job_type") == "internship"]
+    fulltime    = [j for j in jobs if j.get("job_type") == "full_time_remote"]
+    hackathons  = [j for j in jobs if j.get("job_type") == "hackathon"]
+    fetched_str = time.strftime("%d %b %Y, %I:%M %p", time.localtime(fetched_at)) if fetched_at else None
+    tab = request.args.get("tab", "internships")
+    return render_template(
+        "jobs.html",
+        internships=internships,
+        fulltime=fulltime,
+        hackathons=hackathons,
+        fetched_at=fetched_str,
+        active_tab=tab,
+    )
+
+
+@app.route("/jobs/apply", methods=["POST"])
+def jobs_apply():
+    from autoapply import tracker as _tracker
+    data    = request.get_json(force=True) or {}
+    url     = data.get("url", "")
+    source  = data.get("source", "")
+    if not url or not source:
+        return jsonify({"error": "missing url or source"}), 400
+
+    _tracker.init_db()
+    if _tracker.already_applied(url):
+        return jsonify({"status": "applied"})
+
+    with _apply_lock:
+        if _apply_status.get(url) == "applying":
+            return jsonify({"status": "applying"})
+        _apply_status[url] = "applying"
+
+    job = {
+        "url":      url,
+        "source":   source,
+        "title":    data.get("title", ""),
+        "company":  data.get("company", ""),
+        "job_type": data.get("job_type", "internship"),
+    }
+    t = threading.Thread(target=_run_apply_background, args=(job,), daemon=True)
+    t.start()
+    return jsonify({"status": "applying"})
+
+
+@app.route("/jobs/apply_status")
+def jobs_apply_status():
+    from autoapply import tracker as _tracker
+    url = request.args.get("url", "")
+    _tracker.init_db()
+    if _tracker.already_applied(url):
+        return jsonify({"status": "applied"})
+    with _apply_lock:
+        status = _apply_status.get(url, "pending")
+    return jsonify({"status": status})
 
 
 @app.route("/")
@@ -312,7 +536,7 @@ def autoapply_settings():
         aa["headless"]             = request.form.get("headless") == "on"
         aa["max_per_day"]          = int(request.form.get("max_per_day", 20) or 20)
         aa["platforms"] = [
-            p for p in ["linkedin", "indeed", "internshala"]
+            p for p in ["linkedin", "indeed", "internshala", "naukri", "unstop"]
             if request.form.get(f"platform_{p}") == "on"
         ]
         save_config(config)
@@ -326,7 +550,12 @@ def autoapply_settings():
         "indeed_password":        bool(os.environ.get("INDEED_PASSWORD")),
         "internshala_email":      bool(os.environ.get("INTERNSHALA_EMAIL")),
         "internshala_password":   bool(os.environ.get("INTERNSHALA_PASSWORD")),
+        "naukri_email":           bool(os.environ.get("NAUKRI_EMAIL")),
+        "naukri_password":        bool(os.environ.get("NAUKRI_PASSWORD")),
+        "unstop_email":           bool(os.environ.get("UNSTOP_EMAIL")),
+        "unstop_password":        bool(os.environ.get("UNSTOP_PASSWORD")),
         "anthropic_api_key":      bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "hunter_api_key":         bool(os.environ.get("HUNTER_API_KEY")),
     }
     return render_template(
         "autoapply_settings.html",
@@ -339,24 +568,62 @@ def autoapply_settings():
 
 @app.route("/run", methods=["POST"])
 def run_pipeline():
-    try:
-        result = subprocess.run(
-            [sys.executable, "main.py"],
-            capture_output=True,
-            text=True,
-            timeout=2700,
-            cwd=os.path.dirname(os.path.abspath(__file__)),
-        )
-        if result.returncode == 0:
-            flash("Pipeline run completed successfully.", "success")
-        else:
-            flash(f"Pipeline run failed (exit {result.returncode}). Check your terminal for logs.", "error")
-    except subprocess.TimeoutExpired:
-        flash("Pipeline run timed out after 45 minutes.", "error")
-    except Exception as e:
-        flash(f"Failed to start pipeline: {e}", "error")
-    return redirect(url_for("dashboard"))
+    with _pipeline_lock_obj:
+        already = _pipeline_state["running"]
+        if not already:
+            t = threading.Thread(target=_run_pipeline_thread, daemon=True)
+            t.start()
+    return jsonify({"started": not already, "running": True})
+
+
+@app.route("/run/stream")
+def run_stream():
+    def generate():
+        with _pipeline_lock_obj:
+            history = list(_pipeline_state["log"])
+            running = _pipeline_state["running"]
+            status  = _pipeline_state["status"]
+
+        for line in history:
+            yield f"data: {json.dumps(line)}\n\n"
+
+        if not running:
+            yield f"data: {json.dumps('__done__' + status)}\n\n"
+            return
+
+        q: queue.Queue = queue.Queue(maxsize=1000)
+        with _pipeline_lock_obj:
+            _pipeline_listeners.append(q)
+        try:
+            while True:
+                try:
+                    line = q.get(timeout=30)
+                    yield f"data: {json.dumps(line)}\n\n"
+                    if line.startswith("__done__"):
+                        break
+                except queue.Empty:
+                    yield ": ping\n\n"
+        finally:
+            with _pipeline_lock_obj:
+                if q in _pipeline_listeners:
+                    _pipeline_listeners.remove(q)
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.route("/run/status")
+def run_status():
+    with _pipeline_lock_obj:
+        return jsonify({
+            "running": _pipeline_state["running"],
+            "status":  _pipeline_state["status"],
+            "lines":   len(_pipeline_state["log"]),
+        })
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, threaded=True, use_reloader=False)

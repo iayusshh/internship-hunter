@@ -50,6 +50,15 @@
       "artificial intelligence",
       "machine learning"
     ],
+    "unstop_hackathon_keywords": [
+      "machine learning",
+      "web development",
+      "data science",
+      "software",
+      "ai",
+      "open innovation",
+      "blockchain"
+    ],
     "yc_roles": [
       "software_engineer",
       "machine_learning"
@@ -100,7 +109,7 @@
   "filters": {
     "enable_internships": true,
     "enable_full_time_remote": true,
-    "min_salary_usd_annual": 40000,
+    "min_salary_usd_annual": 3999,
     "full_time_require_remote_hint": true,
     "full_time_min_quality": 4,
     "tech_include_keywords": [
@@ -232,17 +241,18 @@
     "linkedin_min_quality": 6
   },
   "sources": {
-    "cap_linkedin_indian": 10,
-    "cap_linkedin_offshore": 10,
-    "max_per_offshore_country": 3,
+    "cap_linkedin_indian": 3,
+    "cap_linkedin_offshore": 3,
+    "max_per_offshore_country": 2,
     "cap_indeed_internship": 8,
-    "cap_glassdoor_internship": 8,
+    "cap_glassdoor_internship": 2,
     "cap_linkedin_fulltime": 8,
     "cap_indeed_fulltime": 8,
     "cap_glassdoor_fulltime": 8,
-    "cap_internshala": 5,
-    "cap_unstop": 5,
+    "cap_internshala": 7,
+    "cap_unstop": 7,
     "cap_naukri": 8,
+    "cap_unstop_hackathon": 10,
     "cap_hn": 8,
     "cap_yc": 10,
     "cap_wellfound": 10,
@@ -269,7 +279,9 @@
     ]
   },
   "notifications": {
-    "email_recipients": ["ayush.doingwork@gmail.com"],
+    "email_recipients": [
+      "ayush.doingwork@gmail.com"
+    ],
     "telegram_enabled": true,
     "email_enabled": true
   },
@@ -282,7 +294,9 @@
     "platforms": [
       "linkedin",
       "indeed",
-      "internshala"
+      "internshala",
+      "naukri",
+      "unstop"
     ],
     "cover_letter_enabled": true,
     "use_resume_tailor": true,

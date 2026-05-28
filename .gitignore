@@ -54,4 +54,5 @@ ruvector.db
 seen_jobs.json
 config.json
 .hackathons_cache.json
+.last_run_jobs.json
 applicant_profile.json

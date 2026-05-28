@@ -25,6 +25,11 @@
         <span class="icon">DB</span>
         <span>Dashboard</span>
       </a>
+      <a href="{{ url_for('jobs_page') }}"
+         class="sb-link {% if request.endpoint == 'jobs_page' %}active{% endif %}">
+        <span class="icon">JB</span>
+        <span>Jobs</span>
+      </a>
       <a href="{{ url_for('hackathons_page') }}"
          class="sb-link {% if request.endpoint == 'hackathons_page' %}active{% endif %}">
         <span class="icon">HK</span>
@@ -93,6 +98,24 @@
     <div class="page-content">
       {% block content %}{% endblock %}
     </div>
+  </div>
+
+  <!-- ── Pipeline progress panel ─────────────── -->
+  <div id="pipelinePanel" style="display:none;position:fixed;bottom:20px;right:20px;z-index:9999;
+       width:400px;background:#1e293b;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.35);
+       font-size:12px;color:#e2e8f0;overflow:hidden;">
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                padding:10px 14px;background:#0f172a;border-bottom:1px solid #334155;">
+      <span id="ppTitle" style="font-weight:600;font-size:13px;">▶ Pipeline running…</span>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button onclick="togglePipelineBody()" id="ppMinBtn"
+                style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px;padding:0;line-height:1;">−</button>
+        <button onclick="document.getElementById('pipelinePanel').style.display='none'"
+                style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:16px;padding:0;line-height:1;">✕</button>
+      </div>
+    </div>
+    <div id="ppBody" style="max-height:220px;overflow-y:auto;padding:10px 14px;
+                            font-family:monospace;font-size:11px;line-height:1.65;"></div>
   </div>
 
   <!-- ── Toast container ──────────────────────── -->
@@ -259,5 +282,86 @@
   </script>
 
   {% block extra_js %}{% endblock %}
+
+  <!-- ── Pipeline progress JS ─────────────────── -->
+  <script>
+  (function() {
+    const panel  = document.getElementById('pipelinePanel');
+    const body   = document.getElementById('ppBody');
+    const title  = document.getElementById('ppTitle');
+    let   es     = null;
+    let   minimized = false;
+
+    function appendLine(text) {
+      if (!text || text.startsWith('__done__') || text === '__ping__') return;
+      const d = document.createElement('div');
+      d.style.cssText = 'padding:1px 0;white-space:pre-wrap;word-break:break-all;';
+      // colour coding
+      if (text.includes('ERROR') || text.includes('failed'))
+        d.style.color = '#f87171';
+      else if (text.includes('✓') || text.includes('Done') || text.includes('sent'))
+        d.style.color = '#4ade80';
+      else if (text.startsWith('═') || text.includes('Starting') || text.includes('Scraping'))
+        d.style.color = '#93c5fd';
+      d.textContent = text;
+      body.appendChild(d);
+      body.scrollTop = body.scrollHeight;
+    }
+
+    function connectSSE() {
+      if (es) { es.close(); es = null; }
+      es = new EventSource('/run/stream');
+      panel.style.display = 'block';
+
+      es.onmessage = function(e) {
+        const line = JSON.parse(e.data);
+        if (line.startsWith('__done__')) {
+          const ok = line === '__done__done';
+          title.textContent = ok ? '✅ Pipeline complete' : '❌ Pipeline failed';
+          title.style.color = ok ? '#4ade80' : '#f87171';
+          es.close(); es = null;
+          const btn = document.getElementById('runBtn');
+          if (btn) { btn.disabled = false; btn.textContent = '▶ Run Pipeline Now'; }
+        } else {
+          appendLine(line);
+        }
+      };
+      es.onerror = function() {
+        es.close(); es = null;
+      };
+    }
+
+    window.togglePipelineBody = function() {
+      minimized = !minimized;
+      body.style.display = minimized ? 'none' : '';
+      document.getElementById('ppMinBtn').textContent = minimized ? '+' : '−';
+    };
+
+    // Exposed globally so dashboard's startPipeline() can call it
+    window.connectSSE = function() {
+      title.textContent = '▶ Pipeline running…';
+      title.style.color = '#93c5fd';
+      if (body) body.innerHTML = '';
+      connectSSE();
+    };
+
+    // On every page load, check if pipeline is already running → reconnect
+    fetch('/run/status').then(r => r.json()).then(data => {
+      const btn = document.getElementById('runBtn');
+      if (data.running) {
+        title.textContent = '▶ Pipeline running…';
+        title.style.color = '#93c5fd';
+        connectSSE();
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Running…'; }
+      } else if (data.status === 'done' || data.status === 'failed') {
+        const ok = data.status === 'done';
+        title.textContent = ok ? '✅ Pipeline complete' : '❌ Pipeline failed';
+        title.style.color = ok ? '#4ade80' : '#f87171';
+        panel.style.display = 'block';
+        if (btn) { btn.disabled = false; btn.textContent = '▶ Run Pipeline Now'; }
+      }
+    }).catch(() => {});
+  })();
+  </script>
 </body>
 </html>
