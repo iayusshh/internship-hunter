@@ -25,6 +25,11 @@
         <span class="icon">DB</span>
         <span>Dashboard</span>
       </a>
+      <a href="{{ url_for('hackathons_page') }}"
+         class="sb-link {% if request.endpoint == 'hackathons_page' %}active{% endif %}">
+        <span class="icon">HK</span>
+        <span>Hackathons</span>
+      </a>
 
       <div class="sb-section">Search</div>
       <a href="{{ url_for('search') }}"

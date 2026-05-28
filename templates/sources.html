@@ -141,12 +141,25 @@
         <div class="setting-row">
           <div class="setting-info">
             <strong>Unstop cap</strong>
-            <small>Max Unstop jobs per digest.</small>
+            <small>Max Unstop internship jobs per digest.</small>
           </div>
           <div class="stepper">
             <button type="button" class="stepper-btn stepper-dec">−</button>
             <input type="number" name="cap_unstop" class="stepper-input"
                    value="{{ config.sources.cap_unstop }}" min="0" max="30">
+            <button type="button" class="stepper-btn stepper-inc">+</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div class="setting-info">
+            <strong>Unstop Hackathons cap</strong>
+            <small>Max hackathons per digest (top N by prize &amp; relevance).</small>
+          </div>
+          <div class="stepper">
+            <button type="button" class="stepper-btn stepper-dec">−</button>
+            <input type="number" name="cap_unstop_hackathon" class="stepper-input"
+                   value="{{ config.sources.get('cap_unstop_hackathon', 10) }}" min="0" max="20">
             <button type="button" class="stepper-btn stepper-inc">+</button>
           </div>
         </div>

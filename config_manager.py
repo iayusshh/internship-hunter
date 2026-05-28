@@ -286,7 +286,7 @@ DEFAULT_CONFIG: dict = {
         "cap_internshala":         5,
         "cap_unstop":              5,
         "cap_naukri":              8,
-        "cap_unstop_hackathon":    5,
+        "cap_unstop_hackathon":    10,
 
         # Community sources
         "cap_hn":                  8,

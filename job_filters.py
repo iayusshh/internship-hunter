@@ -78,6 +78,33 @@ def _has_remote_hint(job: dict) -> bool:
     return "remote" in location or "anywhere" in location or "worldwide" in location
 
 
+def hackathon_quality_score(job: dict) -> int:
+    score = 0
+    if _looks_dubious(job):
+        return -5
+
+    prize = str(job.get("stipend", "")).strip()
+    if prize:
+        amounts = _extract_amounts(prize)
+        if amounts:
+            score += 4
+            top = max(amounts)
+            if top >= 10000:
+                score += 2
+            if top >= 50000:
+                score += 2
+
+    if job.get("is_remote") or "online" in _normalize(str(job.get("location", ""))):
+        score += 3
+
+    title = _normalize(str(job.get("title", "")))
+    tech_hints = ["machine learning", "ai", "web", "software", "data", "cloud", "hack", "open innovation"]
+    if any(t in title for t in tech_hints):
+        score += 1
+
+    return score
+
+
 def quality_score(job: dict) -> int:
     job_type = str(job.get("job_type", "internship"))
     title    = _normalize(str(job.get("title", "")))
@@ -161,8 +188,8 @@ def is_paid_internship(job: dict) -> bool:
     if isinstance(paid_flag, bool):
         return paid_flag
 
-    # jobspy/LinkedIn results don't expose stipend in search — assume paid
-    if source in ("linkedin", "indeed", "glassdoor", "yc jobs", "wellfound"):
+    # jobspy/LinkedIn and Indian platforms don't expose stipend in search — assume paid
+    if source in ("linkedin", "indeed", "glassdoor", "yc jobs", "wellfound", "unstop", "naukri"):
         return True
 
     return not strict

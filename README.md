@@ -1,6 +1,6 @@
 # Internship Hunter v2
 
-A daily automated pipeline that scrapes **11 job sources**, auto-applies via **Telegram-controlled bot**, generates AI cover letters, finds recruiter emails, and surfaces referral connections — all delivered to your phone every morning at **9 AM IST**.
+A daily automated pipeline that scrapes **11 job sources + Unstop Hackathons**, auto-applies via **Telegram-controlled bot**, generates AI cover letters, finds recruiter emails, and surfaces referral connections — all delivered to your phone every morning at **9 AM IST**.
 
 ---
 
@@ -8,28 +8,28 @@ A daily automated pipeline that scrapes **11 job sources**, auto-applies via **T
 
 | Layer | What happens |
 |---|---|
-| **Scrape** | 11 sources: LinkedIn, Indeed, Glassdoor, Internshala, Unstop, Naukri, YC Jobs, Wellfound, Turing, Mercor, HN "Who's Hiring" |
-| **Filter** | Drops non-tech, scam listings, US-only, low stipend, senior roles |
+| **Scrape** | 11 sources: LinkedIn, Indeed, Glassdoor, Internshala, Unstop, Naukri, YC Jobs, Wellfound, Turing, Mercor, HN "Who's Hiring" + Unstop Hackathons |
+| **Filter** | Drops non-tech, scam listings, US-only, low stipend, senior roles. Hackathons ranked by prize & relevance |
 | **Dedup** | URL hash + title\|company hash — 60-day window, persisted in `seen_jobs.json` |
 | **Notify** | HTML email digest + individual Telegram cards with action buttons |
-| **Act** | Tap a button → bot applies, cold-emails, or finds your 2nd-degree connections |
+| **Act** | Tap a button → bot applies/registers, cold-emails, or finds your 2nd-degree connections |
 
-Two job categories: **Internships** (India-focused, stipend-filtered) and **Remote Full-Time** (salary-filtered, global).
+Three job categories: **Internships** (India-focused, stipend-filtered), **Remote Full-Time** (salary-filtered, global), and **Hackathons** (prize-ranked, top 10 per digest).
 
 ---
 
 ## Telegram Control
 
-Each job arrives as its own card with buttons:
+Each job/hackathon arrives as its own card with buttons:
 
 ```
-📚 Software Engineer Intern
-🏢 Google
-📍 Bangalore, India
-💰 ₹50,000/month
-LinkedIn · Internship
+📚 Software Engineer Intern          🏆 ML Hackathon
+🏢 Google                            🏢 Devfolio
+📍 Bangalore, India                  📍 Online
+💰 ₹50,000/month                     🏅 Prize: ₹1,00,000
+LinkedIn · Internship                ⏰ Deadline: 2025-06-30
 
-[🤖 Auto Apply]  [🔗 Open]
+[🤖 Auto Apply]  [🔗 Open]          [🤖 Register]  [🔗 Open]
 [📧 Cold Email]  [🤝 Referral]
 ```
 
@@ -76,7 +76,9 @@ internship-hunter/
 │   ├── base_applier.py          # Playwright ABC + human-delay helpers
 │   ├── linkedin_applier.py      # LinkedIn Easy Apply automation
 │   ├── indeed_applier.py        # Indeed Quick Apply automation
-│   └── internshala_applier.py   # Internshala apply automation
+│   ├── internshala_applier.py   # Internshala apply automation
+│   ├── naukri_applier.py        # Naukri apply automation
+│   └── unstop_applier.py        # Unstop jobs + hackathon registration
 │
 ├── outreach/
 │   ├── cold_email.py            # Email finder + Claude draft + Gmail send
@@ -137,9 +139,11 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
 | `GMAIL_APP_PASSWORD` | 16-char app password |
 | `TELEGRAM_BOT_TOKEN` | bot token |
 | `TELEGRAM_CHAT_ID` | your chat ID |
-| `LINKEDIN_EMAIL` / `LINKEDIN_PASSWORD` | for auto-apply |
-| `INDEED_EMAIL` / `INDEED_PASSWORD` | for auto-apply |
-| `INTERNSHALA_EMAIL` / `INTERNSHALA_PASSWORD` | for auto-apply |
+| `LINKEDIN_EMAIL` / `LINKEDIN_PASSWORD` | auto-apply on LinkedIn |
+| `INDEED_EMAIL` / `INDEED_PASSWORD` | auto-apply on Indeed |
+| `INTERNSHALA_EMAIL` / `INTERNSHALA_PASSWORD` | auto-apply on Internshala |
+| `NAUKRI_EMAIL` / `NAUKRI_PASSWORD` | auto-apply on Naukri |
+| `UNSTOP_EMAIL` / `UNSTOP_PASSWORD` | auto-apply/register on Unstop |
 | `ANTHROPIC_API_KEY` | Claude API (cover letters + resume tailoring) |
 | `HUNTER_API_KEY` | Hunter.io (optional, for cold email finding) |
 
@@ -195,10 +199,11 @@ python app.py   # http://localhost:5000
 | Page | What you configure |
 |---|---|
 | Dashboard | Overview, filter toggles, source caps, run pipeline button |
+| **Hackathons** | Top 10 Unstop hackathons ranked by prize — fetch on demand, register directly |
 | Keywords & Locations | Search terms for all 11 sources |
 | Role Filters | Tech include/exclude keywords, job type toggles, salary minimums |
 | Block Lists | Blocked companies, dubious keywords, unpaid indicators |
-| Source Caps | Max jobs per source per digest |
+| Source Caps | Max jobs per source per digest (incl. hackathon cap) |
 | Location Rules | Indian city hints, US-only detection |
 | Notifications | Email recipients, channel toggles |
 | **Applications** | Full tracker table: every auto-apply attempt with status + cover letter |
@@ -259,7 +264,7 @@ Both hashes stored in `seen_jobs.json` (committed to git) with a timestamp. Entr
 5. Button updates to ✅ Applied or ❌ reason
 6. Application logged in `applications.db` with full cover letter
 
-**Platforms supported**: LinkedIn Easy Apply, Indeed Quick Apply, Internshala
+**Platforms supported**: LinkedIn Easy Apply, Indeed Quick Apply, Internshala, Naukri, Unstop (jobs + hackathon registration)
 
 ---
 

@@ -166,7 +166,7 @@ def send_email(jobs: list[dict]) -> bool:
 # ─────────────────────────────────────────────
 
 # Platforms the auto-apply bot can handle
-_APPLY_PLATFORMS = {"LinkedIn", "Indeed", "Internshala", "Naukri", "Unstop Hackathons"}
+_APPLY_PLATFORMS = {"LinkedIn", "Indeed", "Internshala", "Naukri", "Unstop", "Unstop Hackathons"}
 
 
 def _esc(text: str) -> str:

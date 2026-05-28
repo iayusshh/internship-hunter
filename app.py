@@ -9,6 +9,7 @@ import subprocess
 import sys
 import os
 import json
+import time
 
 try:
     from dotenv import load_dotenv
@@ -170,6 +171,7 @@ def sources():
         # India-specific
         s["cap_internshala"]           = int(request.form.get("cap_internshala", 5) or 5)
         s["cap_unstop"]                = int(request.form.get("cap_unstop", 5) or 5)
+        s["cap_unstop_hackathon"]      = int(request.form.get("cap_unstop_hackathon", 10) or 10)
         # New sources
         s["cap_naukri"]                = int(request.form.get("cap_naukri", 8) or 8)
         s["cap_hn"]                    = int(request.form.get("cap_hn", 8) or 8)
@@ -237,6 +239,46 @@ def clear_applications():
     except Exception as e:
         flash(f"Clear failed: {e}", "error")
     return redirect(url_for("applications"))
+
+
+_HACKATHON_CACHE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".hackathons_cache.json")
+
+
+def _load_hackathon_cache() -> tuple[list, float]:
+    if not os.path.exists(_HACKATHON_CACHE):
+        return [], 0.0
+    try:
+        with open(_HACKATHON_CACHE) as f:
+            data = json.load(f)
+        return data.get("hackathons", []), float(data.get("fetched_at", 0))
+    except Exception:
+        return [], 0.0
+
+
+def _save_hackathon_cache(hackathons: list) -> None:
+    with open(_HACKATHON_CACHE, "w") as f:
+        json.dump({"fetched_at": time.time(), "hackathons": hackathons}, f)
+
+
+@app.route("/hackathons")
+def hackathons_page():
+    hackathons, fetched_at = _load_hackathon_cache()
+    fetched_str = time.strftime("%d %b %Y, %I:%M %p", time.localtime(fetched_at)) if fetched_at else None
+    return render_template("hackathons.html", hackathons=hackathons, fetched_at=fetched_str)
+
+
+@app.route("/hackathons/refresh", methods=["POST"])
+def hackathons_refresh():
+    try:
+        from scrapers.unstop_scraper import scrape_unstop_hackathons
+        from job_filters import hackathon_quality_score
+        raw = scrape_unstop_hackathons()
+        ranked = sorted(raw, key=hackathon_quality_score, reverse=True)[:10]
+        _save_hackathon_cache(ranked)
+        flash(f"Fetched {len(ranked)} hackathons from Unstop.", "success")
+    except Exception as e:
+        flash(f"Scrape failed: {e}", "error")
+    return redirect(url_for("hackathons_page"))
 
 
 @app.route("/autoapply-settings", methods=["GET", "POST"])

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Hackathons — Internship Hunter{% endblock %}
+{% block topbar_title %}Top Hackathons on Unstop{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">🏆 Top Hackathons</h1>
+  <p class="page-desc">Top 10 best hackathons from Unstop, ranked by prize &amp; relevance. Also sent to Telegram during the daily run.</p>
+</div>
+
+<!-- Actions bar -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:10px;">
+  <div style="font-size:13px;color:#64748b;">
+    {% if fetched_at %}
+      Last fetched: <strong>{{ fetched_at }}</strong>
+    {% else %}
+      No data yet — click <strong>Fetch Now</strong> to scrape.
+    {% endif %}
+  </div>
+  <form method="POST" action="{{ url_for('hackathons_refresh') }}">
+    <button type="submit" class="btn btn-primary" style="padding:8px 18px;">
+      🔄 Fetch Now
+    </button>
+  </form>
+</div>
+
+{% if hackathons %}
+<div style="display:grid;gap:14px;">
+  {% for h in hackathons %}
+  <div class="card" style="padding:16px 20px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+
+      <!-- Left: title + meta -->
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+          <span style="font-size:15px;font-weight:600;color:#1e293b;">{{ h.title }}</span>
+          {% if h.is_remote or 'online' in (h.location or '')|lower %}
+            <span style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:99px;padding:2px 9px;font-size:11px;font-weight:600;">Online</span>
+          {% endif %}
+        </div>
+        <div style="font-size:13px;color:#475569;margin-bottom:6px;">
+          🏢 {{ h.company or 'N/A' }}
+          &nbsp;·&nbsp;
+          📍 {{ h.location or 'N/A' }}
+        </div>
+        <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#64748b;">
+          {% if h.stipend %}
+            <span>🏅 Prize: <strong style="color:#b45309;">{{ h.stipend }}</strong></span>
+          {% endif %}
+          {% if h.date_posted and h.date_posted != 'Recent' %}
+            <span>⏰ Deadline: <strong>{{ h.date_posted }}</strong></span>
+          {% endif %}
+          <span style="color:#94a3b8;">Unstop Hackathons</span>
+        </div>
+      </div>
+
+      <!-- Right: register button -->
+      {% if h.url %}
+      <div style="flex-shrink:0;">
+        <a href="{{ h.url }}" target="_blank" rel="noopener"
+           class="btn btn-primary" style="padding:8px 16px;font-size:13px;text-decoration:none;">
+          Register →
+        </a>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="card" style="padding:40px;text-align:center;color:#94a3b8;">
+  <div style="font-size:40px;margin-bottom:12px;">🏆</div>
+  <div style="font-size:15px;font-weight:500;color:#64748b;margin-bottom:6px;">No hackathons fetched yet</div>
+  <div style="font-size:13px;">Click <strong>Fetch Now</strong> to scrape the latest hackathons from Unstop.</div>
+</div>
+{% endif %}
+
+{% endblock %}

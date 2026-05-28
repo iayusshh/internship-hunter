@@ -48,6 +48,7 @@ _PLATFORM_MAP = {
     "Indeed":            IndeedApplier,
     "Internshala":       InternshalaApplier,
     "Naukri":            NaukriApplier,
+    "Unstop":            UnstopApplier,
     "Unstop Hackathons": UnstopApplier,
 }
 

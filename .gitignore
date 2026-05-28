@@ -43,12 +43,15 @@ flask_session/
 .swarm/
 .mcp.json
 agentdb.rvf
+agentdb.rvf.lock
 ruvector.db
 *.db
+*.lock
 
 # seen_jobs.json is intentionally NOT ignored — it must be committed
 # so GitHub Actions can persist dedup state across runs
 
 seen_jobs.json
 config.json
-config.json
+.hackathons_cache.json
+applicant_profile.json

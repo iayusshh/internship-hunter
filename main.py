@@ -26,7 +26,7 @@ from scrapers.naukri_scraper    import scrape_naukri
 from scrapers.hn_scraper        import scrape_hn
 
 from deduplicator import filter_new_jobs
-from job_filters  import filter_relevant_jobs, quality_score
+from job_filters  import filter_relevant_jobs, quality_score, hackathon_quality_score
 from notifier     import send_email, send_telegram
 from config_manager import load_config
 
@@ -122,6 +122,15 @@ def _apply_source_caps(jobs: list[dict]) -> list[dict]:
         ("Turing",    "full_time_remote"):  cfg.get("cap_turing", 8),
         ("Mercor",    "full_time_remote"):  cfg.get("cap_mercor", 8),
     }
+
+    # Hackathons: sort by quality so the cap keeps the best ones
+    hackathon_jobs = sorted(
+        [j for j in jobs if j.get("job_type") == "hackathon"],
+        key=hackathon_quality_score,
+        reverse=True,
+    )
+    non_hackathon_jobs = [j for j in jobs if j.get("job_type") != "hackathon"]
+    jobs = hackathon_jobs + non_hackathon_jobs
 
     # LinkedIn internship: special India/offshore split
     linkedin_intern = [j for j in jobs if j.get("source") == "LinkedIn" and j.get("job_type") != "full_time_remote"]
