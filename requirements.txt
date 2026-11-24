@@ -8,3 +8,4 @@ python-jobspy>=1.1.4
 pandas>=2.0
 playwright>=1.44
 anthropic>=0.28
+sentence-transformers>=3.0

@@ -137,6 +137,11 @@ DEFAULT_CONFIG: dict = {
         "full_time_require_remote_hint": True,
         "full_time_min_quality":       4,
 
+        # Hybrid ranking: alpha * resume cosine + (1 - alpha) * normalised quality_score.
+        # alpha tuned by eval/eval_ranking.py; 0 = rule-only ordering.
+        "semantic_ranking":            True,
+        "semantic_alpha":              0.9,
+
         # Tech role keywords (shared across job types)
         "tech_include_keywords": [
             "software engineer",

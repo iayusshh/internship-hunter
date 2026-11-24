@@ -23,7 +23,23 @@ jobs:
           python-version: "3.11"
 
       - name: Install Python dependencies
-        run: pip install --no-cache-dir -r requirements.txt
+        run: |
+          # CPU torch first; plain pip on Linux would pull the multi-GB CUDA build
+          pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu
+          pip install --no-cache-dir -r requirements.txt
+
+      - name: Cache embedding model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-all-MiniLM-L6-v2
+
+      - name: Cache job embeddings
+        uses: actions/cache@v4
+        with:
+          path: .embeddings_cache.json
+          key: job-embeddings-${{ github.run_id }}
+          restore-keys: job-embeddings-
 
       - name: Install Playwright browsers
         run: playwright install chromium chrome --with-deps
@@ -43,6 +59,7 @@ jobs:
           NAUKRI_EMAIL: ${{ secrets.NAUKRI_EMAIL }}
           NAUKRI_PASSWORD: ${{ secrets.NAUKRI_PASSWORD }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          RESUME_TEXT: ${{ secrets.RESUME_TEXT }}
         run: python main.py
 
       - name: Commit updated seen_jobs.json

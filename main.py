@@ -26,7 +26,7 @@ from scrapers.naukri_scraper    import scrape_naukri
 from scrapers.hn_scraper        import scrape_hn
 
 from deduplicator import filter_new_jobs
-from job_filters  import filter_relevant_jobs, quality_score, hackathon_quality_score
+from job_filters  import filter_relevant_jobs, hackathon_quality_score, rank_jobs
 from notifier     import send_email, send_telegram
 from config_manager import load_config
 
@@ -134,7 +134,7 @@ def _apply_source_caps(jobs: list[dict]) -> list[dict]:
 
     # LinkedIn internship: special India/offshore split
     linkedin_intern = [j for j in jobs if j.get("source") == "LinkedIn" and j.get("job_type") != "full_time_remote"]
-    linkedin_intern = sorted(linkedin_intern, key=quality_score, reverse=True)
+    linkedin_intern = sorted(linkedin_intern, key=lambda j: j.get("match_score", 0), reverse=True)
     cap_indian   = cfg.get("cap_linkedin_indian", 10)
     cap_offshore = cfg.get("cap_linkedin_offshore", 10)
     max_per_country = cfg.get("max_per_offshore_country", 3)
@@ -198,7 +198,11 @@ def main():
     new_jobs = filter_new_jobs(relevant)
     logger.info(f"After dedup: {len(new_jobs)} — by source: {_source_counts(new_jobs)}")
 
+    # Rank before caps so each source cap keeps its best resume matches
+    new_jobs = rank_jobs(new_jobs)
+
     selected = _apply_source_caps(new_jobs)
+    selected.sort(key=lambda j: j.get("match_score", -1), reverse=True)  # digest order; hackathons last
     logger.info(f"After caps: {len(selected)} — by source: {_source_counts(selected)}")
 
     internships = [j for j in selected if j.get("job_type") != "full_time_remote"]
