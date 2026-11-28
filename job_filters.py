@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 
@@ -135,6 +136,48 @@ def quality_score(job: dict) -> int:
             score += 2
 
     return score
+
+
+# ── Hybrid ranking (rules + resume similarity) ───────────────────────────────
+
+_QUALITY_MAX = {"internship": 9, "full_time_remote": 8}   # max reachable quality_score per type
+
+
+def quality_norm(job: dict) -> float:
+    qmax = _QUALITY_MAX.get(str(job.get("job_type", "internship")), 9)
+    return min(max(quality_score(job) / qmax, 0.0), 1.0)
+
+
+def hybrid_score(job: dict, cosine: float, alpha: float) -> float:
+    return alpha * min(max(cosine, 0.0), 1.0) + (1 - alpha) * quality_norm(job)
+
+
+def rank_jobs(jobs: list[dict], alpha: float | None = None) -> list[dict]:
+    """Sort non-hackathon jobs by hybrid score, best first; hackathons follow unchanged.
+    Sets job["match_score"] (sort key) and job["match"] (0-100, only when embeddings ran)."""
+    cfg = _cfg()
+    if alpha is None:
+        alpha = float(cfg.get("semantic_alpha", 0.9))
+    ranked = [j for j in jobs if j.get("job_type") != "hackathon"]
+    rest   = [j for j in jobs if j.get("job_type") == "hackathon"]
+
+    sims = None
+    if ranked and cfg.get("semantic_ranking", True):
+        # Runs after dedup has saved these jobs as seen: a crash here would drop today's digest
+        try:
+            from semantic import resume_similarity
+            sims = resume_similarity(ranked)
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Semantic ranking failed ({e}) — rule-only order.")
+
+    for i, job in enumerate(ranked):
+        if sims is None:
+            job["match_score"] = quality_norm(job)
+        else:
+            job["match_score"] = hybrid_score(job, sims[i], alpha)
+            job["match"] = round(100 * job["match_score"])
+    ranked.sort(key=lambda j: j["match_score"], reverse=True)
+    return ranked + rest
 
 
 # ── Paid / compensation checks ────────────────────────────────────────────────

@@ -11,6 +11,7 @@ A daily automated pipeline that scrapes **11 job sources + Unstop Hackathons**, 
 | **Scrape** | 11 sources: LinkedIn, Indeed, Glassdoor, Internshala, Unstop, Naukri, YC Jobs, Wellfound, Turing, Mercor, HN "Who's Hiring" + Unstop Hackathons |
 | **Filter** | Drops non-tech, scam listings, US-only, low stipend, senior roles. Hackathons ranked by prize & relevance |
 | **Dedup** | URL hash + title\|company hash — 60-day window, persisted in `seen_jobs.json` |
+| **Rank** | Hybrid score = resume similarity (MiniLM embeddings) + rule-based quality score; orders the digest and decides which jobs survive each source cap |
 | **Notify** | HTML email digest + individual Telegram cards with action buttons |
 | **Act** | Tap a button → bot applies/registers, cold-emails, or finds your 2nd-degree connections |
 
@@ -51,6 +52,9 @@ internship-hunter/
 ├── config_manager.py            # Config load/save + DEFAULT_CONFIG
 ├── job_filters.py               # Role, paid, quality, and remote filters
 ├── deduplicator.py              # URL + content-hash dedup (seen_jobs.json)
+├── semantic.py                  # MiniLM job↔resume cosine, embeddings cached by content hash
+├── eval/                        # Labelled jobs + offline ranking eval (recall@10, nDCG@10)
+├── docs/research-semantic-ranking.md  # Design notes + FAQ for the ranker
 ├── notifier.py                  # Email digest + Telegram job cards with buttons
 ├── telegram_bot.py              # Polling bot — handles all Telegram button taps
 ├── app.py                       # Flask web config panel (localhost:5000)
@@ -146,6 +150,7 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
 | `UNSTOP_EMAIL` / `UNSTOP_PASSWORD` | auto-apply/register on Unstop |
 | `ANTHROPIC_API_KEY` | Claude API (cover letters + resume tailoring) |
 | `HUNTER_API_KEY` | Hunter.io (optional, for cold email finding) |
+| `RESUME_TEXT` | Plain-text resume for semantic ranking (CI can't see the gitignored `applicant_profile.json`; without it the digest falls back to rule-only order) |
 
 ### 6 — Set your email recipient and push
 
@@ -224,6 +229,8 @@ Per-source keywords. `jobspy_internship_keywords` drives LinkedIn/Indeed/Glassdo
 - `min_stipend_inr` — INR floor for Indian internships (default ₹5,000)
 - `min_salary_usd_annual` — USD floor for full-time roles (default $40,000)
 - `exclude_us_only` — drop roles requiring US work authorization
+- `semantic_ranking` — rank by resume similarity + quality score (default on; off = rule-only order)
+- `semantic_alpha` — weight of resume similarity in the hybrid score, 0–1 (tuned by `eval/eval_ranking.py`)
 
 ### `sources`
 Per-source delivery caps. LinkedIn internships have a separate India/offshore split with `cap_linkedin_indian`, `cap_linkedin_offshore`, and `max_per_offshore_country`.
@@ -252,6 +259,27 @@ Every job is hashed two ways:
 2. **Content hash** — MD5 of `title|company` (catches cross-source duplicates)
 
 Both hashes stored in `seen_jobs.json` (committed to git) with a timestamp. Entries older than `expiry_days` are pruned automatically.
+
+---
+
+## How Ranking Works
+
+After dedup, every non-hackathon job gets a hybrid score:
+
+```
+hybrid = α · cosine(job, resume) + (1 − α) · quality_score / max_quality      (α = filters.semantic_alpha, default 0.9)
+```
+
+- **cosine**: `all-MiniLM-L6-v2` embedding of title + company + location + pay, compared against each paragraph of
+  your resume (`RESUME_TEXT` secret in CI, `applicant_profile.json` locally); the best paragraph match counts.
+- Ranking runs **before** the per-source caps, so each cap keeps its best matches. The digest is sent in that
+  order, with a `Match NN%` badge in the email and on each Telegram card.
+- Job vectors are cached in `.embeddings_cache.json` by the dedup content hash (persisted in CI with `actions/cache`).
+- No resume or no model means the pipeline falls back to rule-only order and sends no match badges.
+
+**Measured** (`python eval/eval_ranking.py`, 45 hand-labelled jobs): nDCG@10 **0.030 → 0.815** and recall@10
+**0.00 → 0.60** on the mixed list; on internships only, nDCG@10 **0.495 → 0.797**. See
+[`docs/research-semantic-ranking.md`](docs/research-semantic-ranking.md) for the design, caveats and FAQ.
 
 ---
 

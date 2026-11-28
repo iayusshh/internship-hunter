@@ -35,11 +35,16 @@ def _job_rows_html(items: list[dict], show_stipend: bool) -> str:
             f'<br><span style="color:#0f766e;font-size:12px;">{"Stipend" if show_stipend else "Salary"}: {comp}</span>'
             if comp else ""
         )
+        match_html = (
+            f' <span style="background:#ecfdf5;color:#047857;font-size:11px;font-weight:600;'
+            f'padding:1px 6px;border-radius:9px;">Match {j["match"]}%</span>'
+            if j.get("match") is not None else ""
+        )
         rows += f"""
         <tr>
           <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;">
             <a href="{j['url']}" style="color:#4f46e5;font-weight:600;text-decoration:none;">{j['title']}</a><br>
-            <span style="color:#555;font-size:13px;">{j['company']}</span>{comp_html}
+            <span style="color:#555;font-size:13px;">{j['company']}</span>{match_html}{comp_html}
           </td>
           <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;color:#666;font-size:13px;">{j['location']}</td>
           <td style="padding:10px 8px;border-bottom:1px solid #f0f0f0;font-size:13px;">
@@ -195,6 +200,8 @@ def _fmt_job_card(job: dict) -> str:
     if comp:
         prize_label = "🏅 Prize" if jtype_val == "hackathon" else "💰"
         lines.append(f"{prize_label} {_esc(str(comp))}")
+    if job.get("match") is not None:
+        lines.append(f"🎯 Match {job['match']}%")
     if jtype_val == "hackathon" and job.get("date_posted") and job["date_posted"] != "Recent":
         lines.append(f"⏰ Deadline: {_esc(job['date_posted'])}")
     lines.append(f"<i>{_esc(job.get('source', ''))} · {jtype_label}</i>")

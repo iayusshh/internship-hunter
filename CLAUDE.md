@@ -12,7 +12,8 @@ A daily automated job scraper + auto-apply pipeline. Scrapes **11 sources** for 
 main.py  →  SCRAPER_REGISTRY (11 scrapers)
          →  filter_relevant_jobs()   job_filters.py
          →  filter_new_jobs()        deduplicator.py
-         →  _apply_source_caps()     main.py
+         →  rank_jobs()              job_filters.py + semantic.py (hybrid: resume cosine + quality_score)
+         →  _apply_source_caps()     main.py  (caps keep the top-ranked jobs per source)
          →  send_email()             notifier.py  (HTML digest)
          →  send_telegram()          notifier.py  (interactive job cards with buttons)
 
@@ -39,6 +40,8 @@ telegram_bot.py  →  polling bot (run locally)
 | `config_manager.py` | `DEFAULT_CONFIG` is the source of truth. `load_config()` uses `_deep_merge` — new keys never break old `config.json`. |
 | `job_filters.py` | `filter_relevant_jobs()` — internship path: tech role, paid, US-only, quality score. Full-time path: tech role, remote hint, salary. |
 | `deduplicator.py` | URL hash + content hash (title\|company). Stores in `seen_jobs.json`. Do not refactor. |
+| `semantic.py` | all-MiniLM-L6-v2 embeddings. `resume_similarity(jobs)` = max cosine over resume paragraph chunks. Job vectors cached in `.embeddings_cache.json` keyed by `_content_id()`. Returns `None` (→ rule-only) if no resume or model. |
+| `eval/eval_ranking.py` | Offline eval on `eval/labelled_jobs.json` (graded 0/1/2): recall@10 + nDCG@10, rule-only vs hybrid, alpha sweep. Design + results in `docs/research-semantic-ranking.md`. |
 | `notifier.py` | Email: two-section HTML digest. Telegram: individual job cards with inline keyboard buttons. |
 | `app.py` | Flask web UI on port 5000. All routes read/write `config.json`. |
 | `telegram_bot.py` | Polling bot. Run locally to handle button taps. Handles apply, cold email, referral. |
@@ -99,6 +102,9 @@ python app.py   # http://localhost:5000
 
 # Install deps
 pip install -r requirements.txt && playwright install chromium
+
+# Ranking eval (rule-only vs hybrid, recall@10 / nDCG@10)
+python eval/eval_ranking.py
 ```
 
 ---
@@ -116,6 +122,7 @@ pip install -r requirements.txt && playwright install chromium
 | `INTERNSHALA_EMAIL` / `INTERNSHALA_PASSWORD` | Auto-apply |
 | `ANTHROPIC_API_KEY` | Cover letters + resume tailoring |
 | `HUNTER_API_KEY` | Email finding for cold outreach (optional) |
+| `RESUME_TEXT` | Resume plain text for semantic ranking in CI (local runs use `applicant_profile.json`) |
 
 ---
 
@@ -145,5 +152,8 @@ Playwright Chromium installed via `playwright install chromium --with-deps` step
 - `deduplicator.py` is stable — don't refactor without a bug to fix.
 - jobspy returns a pandas DataFrame with NaN values — always use `.get()` or null checks when reading columns.
 - The Telegram job card format (emoji prefix + company on line 2) is parsed by `telegram_bot._parse_job_card()` — keep `_fmt_job_card()` in `notifier.py` in sync with that parser.
+- `rank_jobs()` sets `match_score` (sort key, always) and `match` (0–100, only when embeddings ran). Notifier shows `Match NN%` only if `match` is set. Don't start the match line with 📚/💼/🏆/🏢 — `_parse_job_card()` keys on those.
+- CI installs torch from the CPU wheel index before `requirements.txt`; plain `pip install sentence-transformers` on Linux pulls the multi-GB CUDA build.
+- The embedding cache rarely hits in the daily run (ranking sees only post-dedup, i.e. new, jobs); it pays off on eval/local reruns.
 - `autoapply/tracker.py` runs `init_db()` which is idempotent — safe to call multiple times (uses `CREATE TABLE IF NOT EXISTS`).
 - LinkedIn Easy Apply forms vary per company (1–5 steps, custom questions). Unknown required fields fill with profile values or "N/A" and log a warning — they do not crash the bot.

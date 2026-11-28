@@ -56,3 +56,5 @@ config.json
 .hackathons_cache.json
 .last_run_jobs.json
 applicant_profile.json
+# Semantic ranking: job embedding cache (persisted in CI via actions/cache)
+.embeddings_cache.json
